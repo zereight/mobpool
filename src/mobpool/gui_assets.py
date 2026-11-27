@@ -15,62 +15,61 @@ def render_index_html(csrf_token: str, default_owner: str) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="mobpool-token" content="{escaped_token}">
   <meta name="mobpool-default-owner" content="{escaped_owner}">
-  <title>mobpool — Unified iOS &amp; Android Manager</title>
+  <title>mobpool — iOS &amp; Android Device Pool</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <div class="app-shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true">mp</div>
-        <div>
-          <h1>mobpool</h1>
-          <p class="subtitle">Unified iOS Simulator &amp; Android Emulator Pool</p>
-        </div>
+  <div class="app">
+    <header class="header">
+      <div class="title-group">
+        <h1>mobpool</h1>
+        <span class="subtitle">iOS &amp; Android device pool</span>
       </div>
-      <div class="topbar-actions">
-        <span id="last-updated" class="meta-pill">Loading...</span>
-        <label class="toggle-pill" title="Auto-refresh every 8s while this tab is visible">
+      <div class="header-controls">
+        <span id="last-updated" class="timestamp">Loading...</span>
+        <label class="check-label" title="Auto-refresh every 8s while this tab is visible">
           <input id="auto-refresh-toggle" type="checkbox" checked>
           <span>Auto 8s</span>
         </label>
-        <button id="btn-refresh" class="btn btn-secondary" type="button">Refresh</button>
-        <button id="btn-init-pool" class="btn btn-secondary" type="button">Init Pool</button>
+        <button id="btn-refresh" class="btn" type="button">Refresh</button>
+        <button id="btn-init-pool" class="btn" type="button">Init pool</button>
       </div>
     </header>
 
-    <section id="summary-grid" class="summary-grid" aria-label="System summary"></section>
+    <section id="summary-grid" class="metrics-strip" aria-label="System summary"></section>
 
-    <section class="acquire-bar" aria-label="Quick acquire">
-      <div class="acquire-inputs">
+    <section class="lease-bar" aria-label="Quick acquire">
+      <div class="lease-inputs">
         <label class="field">
           <span>Owner</span>
           <input id="input-owner" type="text" value="{escaped_owner}" placeholder="mobpool-gui" maxlength="80">
         </label>
-        <label class="field field-sm">
+        <label class="field field-ttl">
           <span>TTL (min)</span>
           <input id="input-ttl-min" type="number" min="1" max="1440" value="60">
         </label>
-        <label class="toggle-pill" title="Preserve installed apps when clicking Release">
+        <label class="check-label" title="Preserve installed apps when clicking Release">
           <input id="keep-apps-toggle" type="checkbox">
           <span>Keep apps on release</span>
         </label>
       </div>
-      <div class="acquire-buttons">
-        <button id="btn-acquire-ios" class="btn btn-ios" type="button">+ Acquire iOS</button>
-        <button id="btn-acquire-android" class="btn btn-android" type="button">+ Acquire Android</button>
+      <div class="lease-actions">
+        <button id="btn-acquire-ios" class="btn btn-primary" type="button">Acquire iOS</button>
+        <button id="btn-acquire-android" class="btn btn-primary" type="button">Acquire Android</button>
       </div>
     </section>
 
-    <section id="inflight-banner" class="inflight-banner hidden" aria-live="polite"></section>
-    <section id="error-banner" class="error-banner hidden" role="alert"></section>
+    <section id="inflight-banner" class="notice notice-info hidden" aria-live="polite"></section>
+    <section id="error-banner" class="notice notice-error hidden" role="alert"></section>
 
-    <section class="panel">
+    <main class="surface">
       <div class="toolbar">
-        <div id="platform-tabs" class="segmented" role="tablist" aria-label="Platform filter"></div>
-        <div id="state-filters" class="filter-pills" role="group" aria-label="State filter"></div>
+        <div class="toolbar-filters">
+          <div id="platform-tabs" class="segmented" role="tablist" aria-label="Platform filter"></div>
+          <div id="state-filters" class="state-tabs" role="group" aria-label="State filter"></div>
+        </div>
         <div class="search-wrap">
-          <input id="search-input" type="search" placeholder="Search name, UDID, AVD, serial, owner...">
+          <input id="search-input" type="search" placeholder="Filter by name, UDID, AVD, owner...">
         </div>
       </div>
 
@@ -78,10 +77,10 @@ def render_index_html(csrf_token: str, default_owner: str) -> str:
         <table class="device-table">
           <thead>
             <tr>
-              <th>Device</th>
-              <th>Status</th>
-              <th>Ownership / Lease</th>
-              <th>Resources &amp; Slim</th>
+              <th class="col-device">Device</th>
+              <th class="col-status">Status</th>
+              <th class="col-owner">Ownership</th>
+              <th class="col-metrics">Resources</th>
               <th class="col-actions">Actions</th>
             </tr>
           </thead>
@@ -89,15 +88,15 @@ def render_index_html(csrf_token: str, default_owner: str) -> str:
         </table>
         <div id="empty-state" class="empty-state hidden">No matching devices.</div>
       </div>
-    </section>
+    </main>
 
-    <section class="panel activity-panel">
-      <div class="panel-header">
-        <h2>Activity Log</h2>
-        <span id="activity-count" class="meta-pill">0 events</span>
+    <footer id="activity-panel" class="activity-footer is-empty">
+      <div class="activity-head">
+        <h2>Activity</h2>
+        <span id="activity-count" class="activity-count">0 events</span>
       </div>
       <div id="activity-list" class="activity-list"></div>
-    </section>
+    </footer>
   </div>
 
   <div id="toast-container" class="toast-container" aria-live="polite"></div>
@@ -108,8 +107,8 @@ def render_index_html(csrf_token: str, default_owner: str) -> str:
       <p id="modal-body" class="modal-body"></p>
       <div id="modal-extra" class="modal-extra"></div>
       <div class="modal-footer">
-        <button id="modal-cancel" class="btn btn-secondary" type="button">Cancel</button>
-        <button id="modal-confirm" class="btn btn-danger" type="button">Confirm</button>
+        <button id="modal-cancel" class="btn" type="button">Cancel</button>
+        <button id="modal-confirm" class="btn btn-danger-solid" type="button">Confirm</button>
       </div>
     </div>
   </div>
@@ -120,234 +119,333 @@ def render_index_html(csrf_token: str, default_owner: str) -> str:
 """
 
 
-STYLES_CSS = """\
+STYLES_CSS = r"""
 :root {
-  --bg: #0c1017;
-  --surface: #141a24;
-  --surface-2: #1b2331;
-  --border: #273244;
-  --text: #e6edf7;
-  --muted: #93a4bc;
-  --ios: #4da3ff;
-  --ios-bg: rgba(77, 163, 255, 0.14);
-  --android: #34d399;
-  --android-bg: rgba(52, 211, 153, 0.14);
-  --ok: #34d399;
-  --warn: #fbbf24;
-  --danger: #f87171;
-  --danger-bg: rgba(248, 113, 113, 0.14);
-  --radius: 12px;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  color-scheme: light dark;
+  --bg: #f6f6f7;
+  --surface: #ffffff;
+  --surface-subtle: #f1f1f3;
+  --surface-hover: #f5f5f7;
+  --border: #e4e4e7;
+  --border-strong: #d1d1d6;
+  --text: #141416;
+  --text-secondary: #52525b;
+  --text-muted: #71717a;
+  --ink-bg: #18181b;
+  --ink-bg-hover: #27272a;
+  --ink-text: #ffffff;
+  --focus: #2563eb;
+  --green: #16a34a;
+  --amber: #b45309;
+  --red: #dc2626;
+  --red-subtle: #fef2f2;
+  --red-border: #fecaca;
+  --radius: 6px;
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e0e10;
+    --surface: #151518;
+    --surface-subtle: #1c1c20;
+    --surface-hover: #1d1d22;
+    --border: #26262b;
+    --border-strong: #36363d;
+    --text: #f1f1f4;
+    --text-secondary: #a1a1aa;
+    --text-muted: #7c7c86;
+    --ink-bg: #f4f4f5;
+    --ink-bg-hover: #e4e4e7;
+    --ink-text: #111113;
+    --focus: #60a5fa;
+    --green: #22c55e;
+    --amber: #f59e0b;
+    --red: #f87171;
+    --red-subtle: rgba(239, 68, 68, 0.1);
+    --red-border: rgba(239, 68, 68, 0.3);
+  }
 }
 
 * {
   box-sizing: border-box;
 }
 
-body {
+html, body {
   margin: 0;
+  padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: var(--sans);
-  font-size: 14px;
+  font-family: var(--font-sans);
+  font-size: 13px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
 }
 
-.app-shell {
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 20px 24px 40px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+button, input, select {
+  font: inherit;
+  color: inherit;
 }
 
-.topbar {
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+.app {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 20px 24px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
+  padding-bottom: 4px;
 }
 
-.brand {
+.title-group {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  align-items: baseline;
+  gap: 10px;
 }
 
-.brand-mark {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--ios), var(--android));
-  color: #081018;
-  font-weight: 800;
-  font-family: var(--mono);
-  display: grid;
-  place-items: center;
-  font-size: 15px;
-}
-
-.brand h1 {
+.title-group h1 {
   margin: 0;
-  font-size: 20px;
+  font-size: 16px;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
 .subtitle {
-  margin: 0;
-  color: var(--muted);
-  font-size: 12.5px;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
-.topbar-actions {
+.header-controls {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-.meta-pill {
+.timestamp {
   font-size: 12px;
-  color: var(--muted);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 5px 10px;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-.toggle-pill {
+.check-label {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px 10px;
-  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
   user-select: none;
 }
 
-.toggle-pill input {
-  accent-color: var(--ios);
+.check-label input[type="checkbox"] {
   margin: 0;
+  width: 14px;
+  height: 14px;
+  accent-color: var(--ink-bg);
 }
 
-.summary-grid {
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  transition: background-color 180ms ease, border-color 180ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-subtle);
+  border-color: var(--text-muted);
+  transition-duration: 120ms;
+}
+
+.btn:active:not(:disabled) {
+  background: var(--border);
+  transition-duration: 0ms;
+}
+
+.btn:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--ink-bg);
+  border-color: var(--ink-bg);
+  color: var(--ink-text);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--ink-bg-hover);
+  border-color: var(--ink-bg-hover);
+}
+
+.btn-primary:active:not(:disabled) {
+  opacity: 0.85;
+  transition-duration: 0ms;
+}
+
+.btn-emphasis {
+  background: var(--surface-subtle);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+.btn-danger {
+  background: transparent;
+  border-color: var(--red-border);
+  color: var(--red);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: var(--red-subtle);
+  border-color: var(--red);
+}
+
+.btn-danger-solid {
+  background: var(--red);
+  border-color: var(--red);
+  color: #ffffff;
+}
+
+.btn-danger-solid:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-sm {
+  height: 26px;
+  padding: 0 9px;
+  font-size: 12px;
+}
+
+.btn-copy {
+  height: 20px;
+  min-width: 48px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 500;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+}
+
+.btn-copy:hover:not(:disabled) {
+  background: var(--surface-subtle);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.metrics-strip {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 12px;
-}
-
-@media (max-width: 980px) {
-  .summary-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 600px) {
-  .summary-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.metric-card {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 16px;
+  overflow: hidden;
+}
+
+.metric-cell {
+  padding: 10px 14px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
+  border-right: 1px solid var(--border);
+}
+
+.metric-cell:last-child {
+  border-right: none;
 }
 
 .metric-label {
-  font-size: 12px;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.metric-main {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-variant-numeric: tabular-nums;
 }
 
 .metric-value {
-  font-size: 24px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+  font-weight: 600;
   letter-spacing: -0.02em;
 }
 
-.metric-sub {
+.metric-value.is-warn {
+  color: var(--amber);
+}
+
+.metric-value.is-danger {
+  color: var(--red);
+}
+
+.metric-detail {
   font-size: 12px;
-  color: var(--muted);
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.progress-bar {
-  width: 100%;
-  height: 6px;
-  appearance: none;
-  -webkit-appearance: none;
-  border: none;
-  border-radius: 999px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
   overflow: hidden;
-  background: var(--surface-2);
+  text-overflow: ellipsis;
 }
 
-.progress-bar::-webkit-progress-bar {
-  background: var(--surface-2);
-  border-radius: 999px;
-}
-
-.progress-bar::-webkit-progress-value {
-  background: var(--ok);
-  border-radius: 999px;
-  transition: width 0.25s ease;
-}
-
-.progress-bar.warn::-webkit-progress-value {
-  background: var(--warn);
-}
-
-.progress-bar.danger::-webkit-progress-value {
-  background: var(--danger);
-}
-
-.progress-bar::-moz-progress-bar {
-  background: var(--ok);
-  border-radius: 999px;
-}
-
-.progress-bar.warn::-moz-progress-bar {
-  background: var(--warn);
-}
-
-.progress-bar.danger::-moz-progress-bar {
-  background: var(--danger);
-}
-
-.acquire-bar {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px 16px;
+.lease-bar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
 }
 
-.acquire-inputs {
+.lease-inputs {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
@@ -355,129 +453,47 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12.5px;
-  color: var(--muted);
-}
-
-.field input,
-.search-wrap input,
-.modal-select {
-  background: var(--surface-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 13px;
-  font-family: inherit;
+  font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .field input {
-  width: 150px;
-}
-
-.field-sm input {
-  width: 76px;
-}
-
-.acquire-buttons {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.btn {
-  appearance: none;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
-  border-radius: 8px;
-  padding: 7px 12px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
-  white-space: nowrap;
-}
-
-.btn:hover:not(:disabled) {
-  background: #243044;
-  border-color: #3a4a63;
-}
-
-.btn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.btn-sm {
-  padding: 4px 9px;
-  font-size: 12px;
-}
-
-.btn-ios {
-  background: var(--ios-bg);
-  border-color: rgba(77, 163, 255, 0.45);
-  color: var(--ios);
-}
-
-.btn-ios:hover:not(:disabled) {
-  background: rgba(77, 163, 255, 0.24);
-}
-
-.btn-android {
-  background: var(--android-bg);
-  border-color: rgba(52, 211, 153, 0.45);
-  color: var(--android);
-}
-
-.btn-android:hover:not(:disabled) {
-  background: rgba(52, 211, 153, 0.24);
-}
-
-.btn-primary {
-  background: #2563eb;
-  border-color: #3b82f6;
-  color: #ffffff;
-}
-
-.btn-primary:hover:not(:disabled) {
-  background: #1d4ed8;
-}
-
-.btn-danger {
-  background: var(--danger-bg);
-  border-color: rgba(248, 113, 113, 0.45);
-  color: var(--danger);
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: rgba(248, 113, 113, 0.24);
-}
-
-.btn-ghost {
-  background: transparent;
-  border-color: transparent;
-  color: var(--muted);
-}
-
-.btn-ghost:hover:not(:disabled) {
-  background: var(--surface-2);
-  color: var(--text);
-}
-
-.inflight-banner,
-.error-banner {
+  height: 28px;
+  padding: 0 8px;
   border-radius: var(--radius);
-  padding: 10px 14px;
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  width: 148px;
+}
+
+.field-ttl input {
+  width: 66px;
+  font-variant-numeric: tabular-nums;
+}
+
+.lease-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.notice {
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  font-size: 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  font-size: 13px;
+  gap: 4px;
 }
 
-.inflight-banner {
-  background: rgba(77, 163, 255, 0.1);
-  border: 1px solid rgba(77, 163, 255, 0.35);
+.notice-error {
+  border-color: var(--red-border);
+  background: var(--red-subtle);
+  color: var(--red);
 }
 
 .inflight-row {
@@ -487,28 +503,20 @@ body {
 }
 
 .spinner {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  border: 2px solid rgba(77, 163, 255, 0.3);
-  border-top-color: var(--ios);
-  animation: spin 0.8s linear infinite;
+  border: 1.5px solid var(--border-strong);
+  border-top-color: var(--text);
+  animation: spin 0.7s linear infinite;
   flex-shrink: 0;
 }
 
 @keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
+  to { transform: rotate(360deg); }
 }
 
-.error-banner {
-  background: var(--danger-bg);
-  border: 1px solid rgba(248, 113, 113, 0.45);
-  color: #fecaca;
-}
-
-.panel {
+.surface {
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -516,65 +524,98 @@ body {
 }
 
 .toolbar {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbar-filters {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
 .segmented {
   display: inline-flex;
-  background: var(--surface-2);
+  background: var(--surface-subtle);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius);
   padding: 2px;
   gap: 2px;
 }
 
 .seg-btn {
-  border: none;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 4px;
+  border: 1px solid transparent;
   background: transparent;
-  color: var(--muted);
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 12.5px;
-  font-weight: 600;
-  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.seg-btn:hover:not(.active) {
+  color: var(--text);
 }
 
 .seg-btn.active {
   background: var(--surface);
+  border-color: var(--border);
   color: var(--text);
 }
 
-.filter-pills {
-  display: flex;
-  gap: 6px;
+.state-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   flex-wrap: wrap;
 }
 
-.pill-btn {
-  border: 1px solid var(--border);
+.filter-btn {
+  height: 26px;
+  padding: 0 8px;
+  border-radius: 4px;
+  border: 1px solid transparent;
   background: transparent;
-  color: var(--muted);
-  border-radius: 999px;
-  padding: 4px 10px;
+  color: var(--text-secondary);
   font-size: 12px;
-  cursor: pointer;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.pill-btn.active {
-  background: var(--surface-2);
+.filter-btn:hover:not(.active) {
+  background: var(--surface-subtle);
   color: var(--text);
-  border-color: #4a5d7c;
+}
+
+.filter-btn.active {
+  background: var(--surface-subtle);
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.search-wrap {
+  flex: 0 1 240px;
+  min-width: 180px;
 }
 
 .search-wrap input {
-  width: 260px;
-  max-width: 100%;
+  width: 100%;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
 }
 
 .table-wrap {
@@ -584,218 +625,269 @@ body {
 .device-table {
   width: 100%;
   border-collapse: collapse;
+  table-layout: auto;
 }
 
 .device-table th {
   text-align: left;
-  font-size: 11.5px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--muted);
-  padding: 10px 16px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
   border-bottom: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.015);
+  white-space: nowrap;
 }
 
 .device-table td {
-  padding: 12px 16px;
-  border-bottom: 1px solid rgba(39, 50, 68, 0.7);
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
   vertical-align: middle;
 }
 
-.device-table tr:last-child td {
+.device-table tbody tr:last-child td {
   border-bottom: none;
 }
 
-.device-table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
+.device-table tbody tr:hover {
+  background: var(--surface-hover);
+}
+
+.device-table tbody tr.is-booted {
+  background: var(--surface);
 }
 
 .col-actions {
-  text-align: right !important;
+  text-align: right;
+  width: 1%;
+  white-space: nowrap;
+}
+
+.device-table th.col-actions {
+  text-align: right;
 }
 
 .device-cell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
+  min-width: 260px;
 }
 
-.device-title-row {
+.device-head {
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.plat-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  border: 1px solid var(--border-strong);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 .device-name {
-  font-weight: 650;
+  font-weight: 600;
   color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
 }
 
 .device-os {
-  font-size: 12px;
-  color: var(--muted);
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .device-id-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 8px;
+  padding-left: 58px;
 }
 
 .mono-id {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--muted);
-}
-
-.target-chip {
-  font-family: var(--mono);
+  font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--android);
-  background: var(--android-bg);
-  border: 1px solid rgba(52, 211, 153, 0.35);
-  border-radius: 6px;
-  padding: 1px 6px;
-}
-
-.badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border-radius: 999px;
-  padding: 2px 8px;
-  font-size: 11.5px;
-  font-weight: 600;
+  color: var(--text-muted);
   white-space: nowrap;
 }
 
-.badge-ios {
-  background: var(--ios-bg);
-  color: var(--ios);
-}
-
-.badge-android {
-  background: var(--android-bg);
-  color: var(--android);
-}
-
-.badge-booted {
-  background: rgba(52, 211, 153, 0.16);
-  color: var(--ok);
-}
-
-.badge-shutdown {
-  background: rgba(147, 164, 188, 0.14);
-  color: var(--muted);
-}
-
-.badge-pool {
-  background: rgba(99, 102, 241, 0.18);
-  color: #a5b4fc;
-}
-
-.badge-self {
-  background: rgba(77, 163, 255, 0.16);
-  color: var(--ios);
-}
-
-.badge-other {
-  background: var(--danger-bg);
-  color: var(--danger);
-}
-
-.badge-orphan {
-  background: rgba(251, 191, 36, 0.18);
-  color: var(--warn);
-}
-
-.badge-muted {
-  background: rgba(147, 164, 188, 0.12);
-  color: var(--muted);
-}
-
-.stack {
+.status-cell,
+.owner-cell,
+.metrics-cell {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  align-items: flex-start;
+  gap: 2px;
 }
 
-.row-inline {
-  display: flex;
+.status-line {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
-.metrics-text {
-  font-variant-numeric: tabular-nums;
-  font-size: 12.5px;
-  color: var(--text);
+.status-line.is-muted {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.status-line.is-danger {
+  color: var(--red);
+}
+
+.status-line.is-warn {
+  color: var(--amber);
+}
+
+.dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--border-strong);
+}
+
+.dot-booted {
+  background: var(--green);
+}
+
+.dot-locked {
+  background: var(--red);
+}
+
+.dot-self {
+  background: var(--focus);
+}
+
+.dot-warn {
+  background: var(--amber);
+}
+
+.pool-flag {
+  display: inline-block;
+  width: fit-content;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  padding-left: 12px;
 }
 
 .sub-text {
-  font-size: 11.5px;
-  color: var(--muted);
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.metrics-text {
+  font-size: 12px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .actions-cell {
   display: flex;
+  align-items: center;
   justify-content: flex-end;
   gap: 6px;
-  flex-wrap: wrap;
+  white-space: nowrap;
 }
 
 .empty-state {
-  padding: 28px;
+  padding: 28px 16px;
   text-align: center;
-  color: var(--muted);
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
-.panel-header {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--border);
+.activity-footer {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+}
+
+.activity-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
 }
 
-.panel-header h2 {
+.activity-head h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.activity-count {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.activity-footer.is-empty .activity-list {
+  display: none;
 }
 
 .activity-list {
-  max-height: 220px;
-  overflow-y: auto;
-  padding: 8px 16px 12px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .activity-item {
   display: flex;
-  align-items: flex-start;
+  align-items: baseline;
   gap: 10px;
-  font-size: 12.5px;
-  padding: 6px 8px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.02);
+  font-size: 12px;
 }
 
 .activity-time {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
+.activity-status {
+  font-size: 11px;
+  font-weight: 500;
+  flex-shrink: 0;
+  min-width: 66px;
+}
+
+.activity-status.is-ok {
+  color: var(--green);
+}
+
+.activity-status.is-err {
+  color: var(--red);
+}
+
 .activity-msg {
-  white-space: pre-wrap;
+  color: var(--text-secondary);
   word-break: break-word;
 }
 
@@ -807,78 +899,107 @@ body {
   flex-direction: column;
   gap: 8px;
   z-index: 50;
-  max-width: 380px;
+  max-width: 360px;
 }
 
 .toast {
-  background: var(--surface-2);
-  border: 1px solid var(--border);
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
   color: var(--text);
-  padding: 10px 14px;
-  border-radius: 10px;
-  font-size: 13px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
-  white-space: pre-wrap;
-}
-
-.toast-ok {
-  border-color: rgba(52, 211, 153, 0.5);
+  font-size: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .toast-err {
-  border-color: rgba(248, 113, 113, 0.55);
+  border-color: var(--red-border);
+  color: var(--red);
 }
 
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(5, 8, 13, 0.72);
-  display: grid;
-  place-items: center;
+  background: rgba(0, 0, 0, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 16px;
-  z-index: 100;
+  z-index: 60;
 }
 
 .modal-card {
   width: 100%;
-  max-width: 460px;
+  max-width: 440px;
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 20px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
 }
 
 .modal-card h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
+  font-weight: 600;
+  text-wrap: balance;
 }
 
 .modal-body {
   margin: 0;
-  color: var(--muted);
-  font-size: 13.5px;
-  white-space: pre-wrap;
+  font-size: 13px;
+  color: var(--text-secondary);
+  white-space: pre-line;
+  text-wrap: pretty;
 }
 
 .modal-extra {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+}
+
+.modal-select {
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 12px;
+  width: 100%;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  margin-top: 4px;
+  padding-top: 4px;
 }
 
-.hidden {
-  display: none !important;
+@media (max-width: 860px) {
+  .app {
+    padding: 14px;
+  }
+  .metrics-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .metric-cell:nth-child(2) {
+    border-right: none;
+  }
+  .metric-cell:nth-child(1),
+  .metric-cell:nth-child(2) {
+    border-bottom: 1px solid var(--border);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 """
 
@@ -926,11 +1047,7 @@ APP_JS = r"""
     if (Array.isArray(children)) {
       for (const child of children) {
         if (child === null || child === undefined || child === false) continue;
-        if (typeof child === "string") {
-          node.appendChild(document.createTextNode(child));
-        } else {
-          node.appendChild(child);
-        }
+        node.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
       }
     }
     return node;
@@ -950,8 +1067,7 @@ APP_JS = r"""
 
   function formatTime(epochSec) {
     if (!epochSec) return "";
-    const date = new Date(epochSec * 1000);
-    return date.toLocaleTimeString([], {
+    return new Date(epochSec * 1000).toLocaleTimeString([], {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
@@ -961,13 +1077,11 @@ APP_JS = r"""
   function showToast(message, isError) {
     const container = document.getElementById("toast-container");
     const toast = el("div", {
-      class: "toast " + (isError ? "toast-err" : "toast-ok"),
+      class: "toast" + (isError ? " toast-err" : ""),
       text: message,
     });
     container.appendChild(toast);
-    window.setTimeout(() => {
-      toast.remove();
-    }, isError ? 5500 : 3500);
+    window.setTimeout(() => toast.remove(), isError ? 5500 : 3200);
   }
 
   function showErrorBanner(message) {
@@ -1044,9 +1158,7 @@ APP_JS = r"""
 
   function isAcquireBusy(platform) {
     return activeJobs().some(
-      (job) =>
-        (job.action === "acquire" && job.platform === platform) ||
-        job.action === "init"
+      (job) => (job.action === "acquire" && job.platform === platform) || job.action === "init"
     );
   }
 
@@ -1065,7 +1177,7 @@ APP_JS = r"""
       extra.appendChild(options.extraNode);
     }
     confirmBtn.textContent = options.confirmLabel || "Confirm";
-    confirmBtn.className = "btn " + (options.confirmClass || "btn-danger");
+    confirmBtn.className = "btn " + (options.confirmClass || "btn-danger-solid");
 
     const cleanup = () => {
       backdrop.classList.add("hidden");
@@ -1098,7 +1210,7 @@ APP_JS = r"""
     try {
       const data = await apiPost(path, payload);
       if (data.job) {
-        showToast(data.job.label + " started...", false);
+        showToast(data.job.label + " started", false);
         await fetchState(true);
         scheduleJobPoll();
       } else if (data.message) {
@@ -1148,8 +1260,7 @@ APP_JS = r"""
       if (uiState.seenCompletedJobs.has(job.id)) continue;
       uiState.seenCompletedJobs.add(job.id);
       if (!firstLoad) {
-        const isErr = job.status !== "succeeded";
-        showToast(job.message || (job.label + " " + job.status), isErr);
+        showToast(job.message || (job.label + " " + job.status), job.status !== "succeeded");
       }
     }
   }
@@ -1192,111 +1303,82 @@ APP_JS = r"""
     const iosCap = Number((state.caps && state.caps.ios) || 2);
     const androidCount = Number((state.counts && state.counts.android) || 0);
     const androidCap = Number((state.caps && state.caps.android) || 1);
-    const totalPct = totalCap > 0 ? Math.min(100, Math.round((totalBooted / totalCap) * 100)) : 0;
-    const capClass = totalBooted >= totalCap ? "danger" : totalPct >= 75 ? "warn" : "";
+    const capTone = totalBooted >= totalCap ? " is-danger" : "";
 
     const freePct = state.free_memory_pct;
     const minFree = Number(state.min_free_pct || 25);
     const memText = typeof freePct === "number" ? freePct + "%" : "n/a";
-    const memBarWidth = typeof freePct === "number" ? Math.max(0, Math.min(100, freePct)) : 0;
-    const memClass =
+    const memTone =
       typeof freePct === "number"
         ? freePct < minFree
-          ? "danger"
+          ? " is-danger"
           : freePct < minFree + 10
-            ? "warn"
+            ? " is-warn"
             : ""
         : "";
 
     const iosMeta = (state.platforms && state.platforms.ios) || {};
     const androidMeta = (state.platforms && state.platforms.android) || {};
+    const ttlMins = Math.round(((state.config && state.config.default_ttl_sec) || 3600) / 60);
 
-    const cards = [
-      el("div", { class: "metric-card" }, [
-        el("div", { class: "metric-label", text: "Booted Devices" }),
-        el("div", { class: "metric-value", text: totalBooted + " / " + totalCap }),
-        el("progress", {
-          class: "progress-bar " + capClass,
-          max: "100",
-          value: String(totalPct),
-        }),
-        el("div", { class: "metric-sub" }, [
-          el("span", { text: "iOS " + iosCount + "/" + iosCap }),
-          el("span", { text: "·" }),
-          el("span", { text: "Android " + androidCount + "/" + androidCap }),
-        ]),
-      ]),
-      el("div", { class: "metric-card" }, [
-        el("div", { class: "metric-label", text: "Mac Free Memory" }),
-        el("div", { class: "metric-value", text: memText }),
-        el("progress", {
-          class: "progress-bar " + memClass,
-          max: "100",
-          value: String(memBarWidth),
-        }),
-        el("div", { class: "metric-sub" }, [
-          el("span", { text: "Safety floor: " + minFree + "%" }),
-        ]),
-      ]),
-      el("div", { class: "metric-card" }, [
-        el("div", { class: "metric-label", text: "Active Virtual RAM" }),
-        el("div", { class: "metric-value", text: formatGb(state.total_ram_bytes) }),
-        el("div", { class: "metric-sub" }, [
-          el("span", {
-            text:
-              "Pool: iOS " +
-              (iosMeta.pool_count || 0) +
-              " · Android " +
-              (androidMeta.pool_count || 0),
-          }),
-        ]),
-      ]),
-      el("div", { class: "metric-card" }, [
-        el("div", { class: "metric-label", text: "Backends & Guardrails" }),
-        el("div", { class: "row-inline" }, [
-          el("span", {
-            class: "badge " + (iosMeta.available ? "badge-ios" : "badge-other"),
-            text: iosMeta.available
-              ? "iOS ok (" + (iosMeta.installed_count || 0) + ")"
-              : "iOS unavailable",
-            title: iosMeta.reason || "",
-          }),
-          el("span", {
-            class: "badge " + (androidMeta.available ? "badge-android" : "badge-other"),
-            text: androidMeta.available
-              ? "Android ok (" + (androidMeta.installed_count || 0) + ")"
-              : "Android unavailable",
-            title: androidMeta.reason || "",
-          }),
-        ]),
-        el("div", { class: "metric-sub" }, [
-          el("span", {
-            text:
-              "TTL " +
-              Math.round(((state.config && state.config.default_ttl_sec) || 3600) / 60) +
-              "m" +
-              (state.config && state.config.app_id ? " · App guard on" : ""),
-            title: state.config ? state.config.pool_file : "",
-          }),
-        ]),
-      ]),
+    const backendValue =
+      (iosMeta.available ? "iOS " + (iosMeta.installed_count || 0) : "iOS off") +
+      " · " +
+      (androidMeta.available ? "Android " + (androidMeta.installed_count || 0) : "Android off");
+    const backendDetail =
+      "TTL " + ttlMins + "m" + (state.config && state.config.app_id ? " · App guard on" : "");
+
+    const cells = [
+      {
+        label: "Booted",
+        value: totalBooted + " / " + totalCap,
+        tone: capTone,
+        detail: "iOS " + iosCount + "/" + iosCap + " · Android " + androidCount + "/" + androidCap,
+      },
+      {
+        label: "Mac free memory",
+        value: memText,
+        tone: memTone,
+        detail: "Floor " + minFree + "%",
+      },
+      {
+        label: "Virtual RAM",
+        value: formatGb(state.total_ram_bytes),
+        tone: "",
+        detail: "Pool: iOS " + (iosMeta.pool_count || 0) + " · Android " + (androidMeta.pool_count || 0),
+      },
+      {
+        label: "Backends",
+        value: backendValue,
+        tone: !iosMeta.available && !androidMeta.available ? " is-danger" : "",
+        detail: backendDetail,
+        title: [iosMeta.reason, androidMeta.reason].filter((r) => r && r !== "ok").join(" | "),
+      },
     ];
 
-    for (const card of cards) {
-      grid.appendChild(card);
+    for (const item of cells) {
+      grid.appendChild(
+        el("div", { class: "metric-cell", title: item.title || null }, [
+          el("span", { class: "metric-label", text: item.label }),
+          el("div", { class: "metric-main" }, [
+            el("span", { class: "metric-value" + item.tone, text: item.value }),
+          ]),
+          el("span", { class: "metric-detail", text: item.detail }),
+        ])
+      );
     }
 
     const btnIos = document.getElementById("btn-acquire-ios");
     const btnAndroid = document.getElementById("btn-acquire-android");
     if (btnIos) {
       btnIos.disabled = !iosMeta.available || isAcquireBusy("ios");
-      btnIos.title = iosMeta.available ? "Boot next free iOS pool simulator" : (iosMeta.reason || "");
+      btnIos.title = iosMeta.available ? "Boot next free iOS pool simulator" : iosMeta.reason || "";
     }
     if (btnAndroid) {
       btnAndroid.disabled = !androidMeta.available || isAcquireBusy("android");
       btnAndroid.title = androidMeta.available
         ? "Boot next free Android pool emulator"
-        : (androidMeta.reason || "");
+        : androidMeta.reason || "";
     }
 
     const updated = document.getElementById("last-updated");
@@ -1320,7 +1402,7 @@ APP_JS = r"""
         el("div", { class: "inflight-row" }, [
           el("span", { class: "spinner", "aria-hidden": "true" }),
           el("strong", { text: job.label }),
-          el("span", { class: "sub-text", text: "(" + elapsed + "s)" }),
+          el("span", { class: "sub-text", text: elapsed + "s" }),
         ])
       );
     }
@@ -1340,6 +1422,8 @@ APP_JS = r"""
       platformTabs.appendChild(
         el("button", {
           type: "button",
+          role: "tab",
+          "aria-selected": String(uiState.platformFilter === tab.id),
           class: "seg-btn" + (uiState.platformFilter === tab.id ? " active" : ""),
           text: tab.label,
           onClick: () => {
@@ -1352,7 +1436,7 @@ APP_JS = r"""
 
     const stateFilters = document.getElementById("state-filters");
     clearNode(stateFilters);
-    const pillDefs = [
+    const defs = [
       { id: "all", label: "All" },
       { id: "booted", label: "Booted" },
       { id: "shutdown", label: "Shutdown" },
@@ -1360,14 +1444,14 @@ APP_JS = r"""
       { id: "claimed", label: "Claimed" },
       { id: "orphan", label: "Orphan" },
     ];
-    for (const pill of pillDefs) {
+    for (const item of defs) {
       stateFilters.appendChild(
         el("button", {
           type: "button",
-          class: "pill-btn" + (uiState.stateFilter === pill.id ? " active" : ""),
-          text: pill.label,
+          class: "filter-btn" + (uiState.stateFilter === item.id ? " active" : ""),
+          text: item.label,
           onClick: () => {
-            uiState.stateFilter = pill.id;
+            uiState.stateFilter = item.id;
             renderAll();
           },
         })
@@ -1427,7 +1511,7 @@ APP_JS = r"""
   function confirmForceRelease(dev) {
     const keepCheck = el("input", { type: "checkbox" });
     keepCheck.checked = getKeepAppsPref();
-    const extra = el("label", { class: "toggle-pill" }, [
+    const extra = el("label", { class: "check-label" }, [
       keepCheck,
       el("span", { text: "Keep installed apps on device" }),
     ]);
@@ -1440,10 +1524,10 @@ APP_JS = r"""
         dev.target_id +
         ") is currently owned by " +
         ownerDesc +
-        ".\n\nForcing release will shut down this device and interrupt that session.",
+        ".\n\nForcing release shuts down this device and interrupts that session.",
       extraNode: extra,
       confirmLabel: "Force Release",
-      confirmClass: "btn-danger",
+      confirmClass: "btn-danger-solid",
       onConfirm: () =>
         submitAction("/api/release", {
           device_id: dev.device_id,
@@ -1465,7 +1549,7 @@ APP_JS = r"""
         ownerDesc +
         ".\n\nRunning slim may reboot this device and disrupt that session.",
       confirmLabel: "Force Slim",
-      confirmClass: "btn-danger",
+      confirmClass: "btn-danger-solid",
       onConfirm: () =>
         submitAction("/api/slim", {
           device_id: dev.device_id,
@@ -1484,8 +1568,8 @@ APP_JS = r"""
         dev.device_id +
         ") is not in the " +
         dev.platform +
-        " pool.\n\nBooting it consumes a cap slot and marks it as an orphan once its TTL lease expires. Adding it to the pool first is recommended.",
-      confirmLabel: "Prepare & Boot Anyway",
+        " pool.\n\nBooting it consumes a cap slot and marks it as an orphan once its lease expires. Adding it to the pool first is recommended.",
+      confirmLabel: "Prepare & Boot",
       confirmClass: "btn-primary",
       onConfirm: () =>
         submitAction("/api/acquire", {
@@ -1511,7 +1595,7 @@ APP_JS = r"""
       placeholder: "Default (platform cap)",
       class: "modal-select",
     });
-    const extra = el("div", { class: "stack" }, [
+    const extra = el("div", { class: "modal-extra" }, [
       el("label", { class: "sub-text", text: "Target platform" }),
       platSelect,
       el("label", { class: "sub-text", text: "Pool count per platform (optional)" }),
@@ -1520,7 +1604,7 @@ APP_JS = r"""
     openModal({
       title: "Initialize Device Pool?",
       body:
-        "This replaces the saved pool list for the selected platform(s) with unowned devices and runs slim preparation (simslim / avdslim).",
+        "Replaces the saved pool for the selected platform(s) with unowned devices and runs slim preparation.",
       extraNode: extra,
       confirmLabel: "Run Init Pool",
       confirmClass: "btn-primary",
@@ -1536,63 +1620,68 @@ APP_JS = r"""
   }
 
   function renderOwnerCell(dev) {
-    const wrap = el("div", { class: "stack" });
+    const wrap = el("div", { class: "owner-cell" });
     if (dev.owner) {
-      const cls = dev.owner.is_self ? "badge-self" : "badge-other";
-      const prefix = dev.owner.is_self ? "Self · " : "Locked · ";
+      const isSelf = Boolean(dev.owner.is_self);
       wrap.appendChild(
-        el("span", {
-          class: "badge " + cls,
-          text: prefix + dev.owner.source + ":" + dev.owner.label,
-        })
+        el("span", { class: "status-line" + (isSelf ? "" : " is-danger") }, [
+          el("span", { class: "dot " + (isSelf ? "dot-self" : "dot-locked") }),
+          el("span", {
+            text: (isSelf ? "Self · " : "Locked · ") + dev.owner.source + ":" + dev.owner.label,
+          }),
+        ])
       );
       if (typeof dev.owner.expires_in_sec === "number") {
         const mins = Math.max(0, Math.round(dev.owner.expires_in_sec / 60));
-        wrap.appendChild(
-          el("span", { class: "sub-text", text: "TTL: " + mins + "m remaining" })
-        );
+        wrap.appendChild(el("span", { class: "sub-text", text: mins + "m left" }));
       } else {
-        wrap.appendChild(
-          el("span", { class: "sub-text", text: "External session owner" })
-        );
+        wrap.appendChild(el("span", { class: "sub-text", text: "External session" }));
       }
     } else if (dev.is_orphan) {
-      wrap.appendChild(el("span", { class: "badge badge-orphan", text: "Orphan (unclaimed)" }));
+      wrap.appendChild(
+        el("span", { class: "status-line is-warn" }, [
+          el("span", { class: "dot dot-warn" }),
+          el("span", { text: "Orphan" }),
+        ])
+      );
       wrap.appendChild(el("span", { class: "sub-text", text: "Booted outside pool" }));
     } else if (dev.in_pool) {
-      wrap.appendChild(el("span", { class: "badge badge-muted", text: "Pool (free)" }));
+      wrap.appendChild(el("span", { class: "sub-text", text: "Free (pool)" }));
     } else {
-      wrap.appendChild(el("span", { class: "sub-text", text: "Unclaimed" }));
+      wrap.appendChild(el("span", { class: "sub-text", text: "—" }));
     }
     return wrap;
   }
 
   function renderMetricsCell(dev) {
-    const wrap = el("div", { class: "stack" });
+    const wrap = el("div", { class: "metrics-cell" });
     if (dev.state === "Booted") {
       const cpu = Number(dev.cpu_pct || 0).toFixed(1);
       wrap.appendChild(
         el("span", {
           class: "metrics-text",
-          text: formatGb(dev.ram_bytes) + " · CPU " + cpu + "%",
+          text: formatGb(dev.ram_bytes) + " · " + cpu + "% CPU",
         })
       );
       if (dev.slim_status) {
         const notSlim = dev.slim_status.includes("NOT slim");
         wrap.appendChild(
           el("span", {
-            class: "badge " + (notSlim ? "badge-orphan" : "badge-muted"),
+            class: "sub-text" + (notSlim ? " is-warn" : ""),
             text: dev.slim_status,
           })
         );
       }
+    } else if (!dev.can_slim) {
+      wrap.appendChild(
+        el("span", {
+          class: "sub-text",
+          text: "Flags-slim on boot",
+          title: dev.slim_note || "",
+        })
+      );
     } else {
-      wrap.appendChild(el("span", { class: "sub-text", text: "Shutdown" }));
-      if (!dev.can_slim) {
-        wrap.appendChild(
-          el("span", { class: "sub-text", text: "Flags-slim on boot", title: dev.slim_note || "" })
-        );
-      }
+      wrap.appendChild(el("span", { class: "sub-text", text: "—" }));
     }
     return wrap;
   }
@@ -1611,7 +1700,7 @@ APP_JS = r"""
             class: "btn btn-sm",
             text: "Renew",
             disabled: busy,
-            title: "Extend TTL lease to " + Math.round(getTtlSecInput() / 60) + "m",
+            title: "Extend lease TTL",
             onClick: () =>
               submitAction("/api/renew", {
                 device_id: dev.device_id,
@@ -1620,132 +1709,126 @@ APP_JS = r"""
           })
         );
       }
-
+      if (dev.can_slim) {
+        cell.appendChild(
+          el("button", {
+            type: "button",
+            class: "btn btn-sm",
+            text: "Slim",
+            disabled: busy,
+            title: "Apply slimming profile",
+            onClick: () => {
+              if (ownedByOther) {
+                confirmForceSlim(dev);
+              } else {
+                submitAction("/api/slim", {
+                  device_id: dev.device_id,
+                  platform: dev.platform,
+                  force: false,
+                });
+              }
+            },
+          })
+        );
+      }
       cell.appendChild(
         el("button", {
           type: "button",
-          class: "btn btn-sm",
-          text: "Slim",
-          disabled: busy || !dev.can_slim,
-          title: dev.can_slim ? "Apply slimming profile" : dev.slim_note || "Slim unavailable",
+          class: "btn btn-sm btn-danger",
+          text: ownedByOther ? "Force Release" : dev.is_orphan ? "Shut down" : "Release",
+          disabled: busy,
           onClick: () => {
             if (ownedByOther) {
-              confirmForceSlim(dev);
+              confirmForceRelease(dev);
             } else {
-              submitAction("/api/slim", {
+              submitAction("/api/release", {
                 device_id: dev.device_id,
-                platform: dev.platform,
+                keep_apps: getKeepAppsPref(),
                 force: false,
               });
             }
           },
         })
       );
+      return cell;
+    }
 
-      if (ownedByOther) {
+    if (dev.in_pool) {
+      cell.appendChild(
+        el("button", {
+          type: "button",
+          class: "btn btn-sm btn-emphasis",
+          text: "Boot & Claim",
+          disabled: busy || isAcquireBusy(dev.platform),
+          onClick: () =>
+            submitAction("/api/acquire", {
+              platform: dev.platform,
+              device_id: dev.device_id,
+              allow_non_pool: false,
+              owner: getOwnerInput(),
+              ttl_sec: getTtlSecInput(),
+            }),
+        })
+      );
+      if (dev.can_slim) {
         cell.appendChild(
           el("button", {
             type: "button",
-            class: "btn btn-sm btn-danger",
-            text: "Force Release",
+            class: "btn btn-sm",
+            text: "Slim",
             disabled: busy,
-            onClick: () => confirmForceRelease(dev),
-          })
-        );
-      } else {
-        cell.appendChild(
-          el("button", {
-            type: "button",
-            class: "btn btn-sm btn-danger",
-            text: dev.is_orphan ? "Shut down" : "Release",
-            disabled: busy,
+            title: "Persist slim profile while shut down",
             onClick: () =>
-              submitAction("/api/release", {
+              submitAction("/api/slim", {
                 device_id: dev.device_id,
-                keep_apps: getKeepAppsPref(),
+                platform: dev.platform,
                 force: false,
               }),
           })
         );
       }
+      cell.appendChild(
+        el("button", {
+          type: "button",
+          class: "btn btn-sm btn-ghost",
+          text: "Remove",
+          disabled: busy,
+          title: "Remove from pool",
+          onClick: () =>
+            submitAction("/api/pool", {
+              platform: dev.platform,
+              device_id: dev.device_id,
+              in_pool: false,
+            }),
+        })
+      );
     } else {
-      if (dev.in_pool) {
-        cell.appendChild(
-          el("button", {
-            type: "button",
-            class: "btn btn-sm " + (dev.platform === "ios" ? "btn-ios" : "btn-android"),
-            text: "Boot & Claim",
-            disabled: busy || isAcquireBusy(dev.platform),
-            onClick: () =>
-              submitAction("/api/acquire", {
-                platform: dev.platform,
-                device_id: dev.device_id,
-                allow_non_pool: false,
-                owner: getOwnerInput(),
-                ttl_sec: getTtlSecInput(),
-              }),
-          })
-        );
-        if (dev.can_slim) {
-          cell.appendChild(
-            el("button", {
-              type: "button",
-              class: "btn btn-sm",
-              text: "Slim",
-              disabled: busy,
-              title: "Persist slim profile while keeping device shut down",
-              onClick: () =>
-                submitAction("/api/slim", {
-                  device_id: dev.device_id,
-                  platform: dev.platform,
-                  force: false,
-                }),
-            })
-          );
-        }
-        cell.appendChild(
-          el("button", {
-            type: "button",
-            class: "btn btn-sm btn-ghost",
-            text: "− Pool",
-            disabled: busy,
-            title: "Remove from pool",
-            onClick: () =>
-              submitAction("/api/pool", {
-                platform: dev.platform,
-                device_id: dev.device_id,
-                in_pool: false,
-              }),
-          })
-        );
-      } else {
-        cell.appendChild(
-          el("button", {
-            type: "button",
-            class: "btn btn-sm btn-primary",
-            text: "+ Add to Pool",
-            disabled: busy,
-            title: "Prepare slim profile and add to pool",
-            onClick: () =>
-              submitAction("/api/pool", {
-                platform: dev.platform,
-                device_id: dev.device_id,
-                in_pool: true,
-                prepare: true,
-              }),
-          })
-        );
-        cell.appendChild(
-          el("button", {
-            type: "button",
-            class: "btn btn-sm",
-            text: "Boot",
-            disabled: busy || isAcquireBusy(dev.platform),
-            title: "Boot outside pool (requires confirmation)",
-            onClick: () => confirmNonPoolBoot(dev),
-          })
-        );
-      }
+      cell.appendChild(
+        el("button", {
+          type: "button",
+          class: "btn btn-sm",
+          text: "Add to pool",
+          disabled: busy,
+          title: "Prepare slim profile and add to pool",
+          onClick: () =>
+            submitAction("/api/pool", {
+              platform: dev.platform,
+              device_id: dev.device_id,
+              in_pool: true,
+              prepare: true,
+            }),
+        })
+      );
+      cell.appendChild(
+        el("button", {
+          type: "button",
+          class: "btn btn-sm btn-ghost",
+          text: "Boot",
+          disabled: busy || isAcquireBusy(dev.platform),
+          title: "Boot outside pool (requires confirmation)",
+          onClick: () => confirmNonPoolBoot(dev),
+        })
+      );
     }
 
     return cell;
@@ -1764,84 +1847,76 @@ APP_JS = r"""
     empty.classList.add("hidden");
 
     for (const dev of filtered) {
+      const idLabel =
+        dev.runtime_id && dev.runtime_id !== dev.device_id
+          ? dev.device_id + " · " + dev.runtime_id
+          : dev.device_id;
       const copyBtn = el("button", {
         type: "button",
-        class: "btn btn-sm btn-ghost",
-        text: "Copy ID",
-        title: "Copy target ID: " + dev.target_id,
+        class: "btn-copy",
+        text: "Copy",
+        title: "Copy target ID (" + dev.target_id + ")",
       });
       copyBtn.addEventListener("click", () => copyTargetId(dev.target_id, copyBtn));
 
-      const idRowChildren = [
-        el("span", { class: "mono-id", text: dev.device_id }),
-      ];
-      if (dev.target_id && dev.target_id !== dev.device_id) {
-        idRowChildren.push(
-          el("span", {
-            class: "target-chip",
-            text: dev.target_id,
-            title: "Runtime target ID for adb / Argent",
-          })
-        );
-      }
-      idRowChildren.push(copyBtn);
-
-      const tr = el("tr", null, [
+      const isBooted = dev.state === "Booted";
+      const tr = el("tr", { class: isBooted ? "is-booted" : "" }, [
         el("td", null, [
           el("div", { class: "device-cell" }, [
-            el("div", { class: "device-title-row" }, [
+            el("div", { class: "device-head" }, [
               el("span", {
-                class: "badge " + (dev.platform === "ios" ? "badge-ios" : "badge-android"),
+                class: "plat-tag",
                 text: dev.platform === "ios" ? "iOS" : "Android",
               }),
-              el("span", { class: "device-name", text: dev.name }),
+              el("span", { class: "device-name", text: dev.name, title: dev.name }),
               dev.os_version
                 ? el("span", { class: "device-os", text: dev.os_version })
                 : null,
             ]),
-            el("div", { class: "device-id-row" }, idRowChildren),
+            el("div", { class: "device-id-row" }, [
+              el("span", { class: "mono-id", text: idLabel }),
+              copyBtn,
+            ]),
           ]),
         ]),
         el("td", null, [
-          el("div", { class: "stack" }, [
-            el("span", {
-              class: "badge " + (dev.state === "Booted" ? "badge-booted" : "badge-shutdown"),
-              text: dev.state,
-            }),
-            dev.in_pool
-              ? el("span", { class: "badge badge-pool", text: "In Pool" })
-              : el("span", { class: "sub-text", text: "Non-Pool" }),
+          el("div", { class: "status-cell" }, [
+            el("span", { class: "status-line" + (isBooted ? "" : " is-muted") }, [
+              el("span", { class: "dot" + (isBooted ? " dot-booted" : "") }),
+              el("span", { text: dev.state }),
+            ]),
+            dev.in_pool ? el("span", { class: "pool-flag", text: "In pool" }) : null,
           ]),
         ]),
         el("td", null, [renderOwnerCell(dev)]),
         el("td", null, [renderMetricsCell(dev)]),
-        el("td", null, [renderActionsCell(dev)]),
+        el("td", { class: "col-actions" }, [renderActionsCell(dev)]),
       ]);
       tbody.appendChild(tr);
     }
   }
 
   function renderActivity(recentJobs) {
+    const panel = document.getElementById("activity-panel");
     const list = document.getElementById("activity-list");
     const count = document.getElementById("activity-count");
     clearNode(list);
     const jobs = Array.isArray(recentJobs) ? recentJobs : [];
     count.textContent = jobs.length + (jobs.length === 1 ? " event" : " events");
-    if (jobs.length === 0) {
-      list.appendChild(el("div", { class: "sub-text", text: "No actions yet in this session." }));
-      return;
-    }
+    panel.classList.toggle("is-empty", jobs.length === 0);
+    if (jobs.length === 0) return;
+
     for (const job of jobs) {
-      const badgeCls =
+      const cls =
         job.status === "succeeded"
-          ? "badge-booted"
+          ? " is-ok"
           : job.status === "running"
-            ? "badge-self"
-            : "badge-other";
+            ? ""
+            : " is-err";
       list.appendChild(
         el("div", { class: "activity-item" }, [
           el("span", { class: "activity-time", text: formatTime(job.finished_at || job.started_at) }),
-          el("span", { class: "badge " + badgeCls, text: job.status }),
+          el("span", { class: "activity-status" + cls, text: job.status }),
           el("div", { class: "activity-msg", text: job.label + (job.message ? " — " + job.message : "") }),
         ])
       );
