@@ -103,6 +103,11 @@ class AndroidAdapter:
             return False, "missing emulator (install Android SDK emulator)"
         return True, "ok"
 
+    def slim_capability(self) -> tuple[bool, str]:
+        if self.avdslim:
+            return True, "avdslim"
+        return False, "avdslim not installed (lightweight emulator boot flags apply on boot)"
+
     def _list_avd_names(self) -> list[str]:
         if not self.emulator:
             return []
@@ -193,6 +198,43 @@ class AndroidAdapter:
             )
             for avd in all_names
         ]
+
+    def list_all_with_metrics(self) -> list[DeviceInfo]:
+        booted = self._booted_serial_map()
+        avds = self._list_avd_names()
+        all_names = list(dict.fromkeys([*avds, *booted.keys()]))
+        ps_out = self._ps_snapshot() if booted else ""
+        slim_tag = "avdslim" if self.avdslim else "flags-slim"
+        devices: list[DeviceInfo] = []
+        for avd in all_names:
+            serial = booted.get(avd, "")
+            if serial:
+                ram_bytes, cpu_pct = parse_qemu_metrics(ps_out, avd)
+                devices.append(
+                    DeviceInfo(
+                        platform="android",
+                        device_id=avd,
+                        name=avd,
+                        state="Booted",
+                        os_version=self._android_version(serial),
+                        runtime_id=serial,
+                        ram_bytes=ram_bytes,
+                        processes=1 if ram_bytes else 0,
+                        cpu_pct=cpu_pct,
+                        slim_status=slim_tag,
+                    )
+                )
+            else:
+                devices.append(
+                    DeviceInfo(
+                        platform="android",
+                        device_id=avd,
+                        name=avd,
+                        state="Shutdown",
+                        runtime_id="",
+                    )
+                )
+        return devices
 
     def list_booted(self) -> list[DeviceInfo]:
         booted = self._booted_serial_map()

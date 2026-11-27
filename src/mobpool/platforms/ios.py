@@ -79,6 +79,11 @@ class IOSAdapter:
             return False, "missing simslim (brew install mobai-app/tap/simslim)"
         return True, "ok"
 
+    def slim_capability(self) -> tuple[bool, str]:
+        if shutil.which("simslim"):
+            return True, "simslim"
+        return False, "simslim not installed"
+
     def _simctl_json(self, *args: str) -> dict[str, object]:
         try:
             proc = subprocess.run(
@@ -135,17 +140,20 @@ class IOSAdapter:
                 )
         return result
 
-    def list_booted(self) -> list[DeviceInfo]:
-        snap = self._simslim_snapshot()
-        booted: list[DeviceInfo] = []
-        for dev in self.list_available():
+    def list_all_with_metrics(self) -> list[DeviceInfo]:
+        available = self.list_available()
+        has_booted = any(dev.state == "Booted" for dev in available)
+        snap = self._simslim_snapshot() if has_booted else {}
+        enriched: list[DeviceInfo] = []
+        for dev in available:
             if dev.state != "Booted":
+                enriched.append(dev)
                 continue
             metric = snap.get(dev.device_id, {})
             mem = metric.get("memory") or {}
             disabled = int(metric.get("managedDisabled", 0) or 0)
             total = int(metric.get("managedTotal", 0) or 0)
-            booted.append(
+            enriched.append(
                 DeviceInfo(
                     platform="ios",
                     device_id=dev.device_id,
@@ -159,7 +167,16 @@ class IOSAdapter:
                     slim_status=format_slim_status(disabled, total),
                 )
             )
-        return booted
+        return enriched
+
+    def list_booted(self) -> list[DeviceInfo]:
+        return [dev for dev in self.list_all_with_metrics() if dev.state == "Booted"]
+
+    def _device_state(self, device_id: str) -> str | None:
+        for dev in self.list_available():
+            if dev.device_id == device_id:
+                return dev.state
+        return None
 
     def select_pool(self, count: int, owned_ids: set[str]) -> list[str]:
         devs_map = self._simctl_json("available").get("devices", {})
@@ -183,9 +200,17 @@ class IOSAdapter:
             timeout=120,
         )
 
-    def slim_device(self, device_id: str) -> str:
+    def slim_device(
+        self, device_id: str, *, preserve_boot_state: bool | None = None
+    ) -> str:
+        if preserve_boot_state is None:
+            state = self._device_state(device_id)
+            preserve_boot_state = state is not None and state != "Booted"
+        cmd = ["simslim", "on", device_id, "--except", self.cfg.simslim_except]
+        if preserve_boot_state:
+            cmd.append("--preserve-boot-state")
         proc = subprocess.run(
-            ["simslim", "on", device_id, "--except", self.cfg.simslim_except],
+            cmd,
             capture_output=True,
             text=True,
             timeout=120,
@@ -210,7 +235,7 @@ class IOSAdapter:
             timeout=60,
         )
         if verify.returncode != 0:
-            self.slim_device(device_id)
+            self.slim_device(device_id, preserve_boot_state=False)
         return device_id
 
     def release_device(self, device_id: str, keep_apps: bool = False) -> bool:

@@ -30,6 +30,7 @@ When multiple AI coding agents (Claude Code, Codex, Cursor, OpenMyBot, etc.) run
 `mobpool` owns **device lifecycle** (pool selection, concurrency caps, host memory floor, atomic boot locks, TTL leases, and slim booting) and hands off **UI interaction** to your driver of choice (such as Argent, Maestro, Appium, `simctl`, or `adb`).
 
 - **One CLI for iOS + Android** — Same `init`, `audit`, `preflight`, `acquire`, `renew`, `release`, `owners`, and `slim` workflow across both platforms.
+- **Unified Local Web GUI (`mobpool gui`)** — Manage iOS simulators and Android emulators together in one browser dashboard (`127.0.0.1` loopback-only, CSRF/Origin/CSP protected, zero external dependencies).
 - **TTL + heartbeat leases** — Leases persist across transient agent subprocesses and auto-expire if a session crashes without cleanup.
 - **Atomic boot lock** — `mkdir`-based lock with dead-PID stale-lock recovery prevents concurrent agents from racing past your device caps.
 - **Host memory & cap guardrails** — Enforces per-platform caps (`IOS_CAP`, `ANDROID_CAP`), machine-wide `TOTAL_CAP`, and a macOS `memory_pressure` free-memory floor before booting.
@@ -48,15 +49,19 @@ flowchart LR
 
     subgraph Core["mobpool Core (Python stdlib)"]
         CLI["mobpool CLI<br/>init · audit · preflight · acquire · renew · release"]
+        GUI["mobpool GUI<br/>Local Web Dashboard (127.0.0.1)"]
+        SVC["Shared Service Layer<br/>(service.py)"]
         LOCK["Atomic Boot Lock<br/>(mkdir + stale PID recovery)"]
         GUARD["Caps & Memory Floor<br/>(IOS/ANDROID/TOTAL + memory_pressure)"]
         CLAIMS["Owner & TTL Lease Resolver<br/>(TTL leases · worktrees · sim-guard · live app)"]
         POOL["Pool Store<br/>(~/.config/mobpool/pools.json)"]
 
-        CLI --> LOCK
-        CLI --> GUARD
-        CLI --> CLAIMS
-        CLI --> POOL
+        CLI --> SVC
+        GUI --> SVC
+        SVC --> LOCK
+        SVC --> GUARD
+        SVC --> CLAIMS
+        SVC --> POOL
     end
 
     subgraph Platforms["Platform Adapters"]
@@ -179,6 +184,9 @@ mobpool renew <udid-or-avd-or-serial> --ttl 3600
 
 # 5. Clean installed apps, shut down cleanly, and drop the lease
 mobpool release <udid-or-avd-or-serial>
+
+# 6. Open the unified local web dashboard for iOS + Android
+mobpool gui
 ```
 
 ### Example `mobpool audit` Output
@@ -208,7 +216,23 @@ mobpool audit --json
 | `mobpool renew <id>` | `--ttl SEC` | Extends an active TTL lease (heartbeat) by UDID, AVD name, or `emulator-XXXX` serial |
 | `mobpool release <id>` | `--keep-apps`, `--force` | Refuses to kill non-self owned devices unless `--force`; cleans user apps, shuts down, and removes lease |
 | `mobpool owners` | `--platform ios\|android\|all` | Lists all currently claimed devices and their resolved owner source |
-| `mobpool slim <id>` | `--platform ios\|android` | Applies the slimming profile (`simslim on` / `avdslim on`) to a specific device |
+| `mobpool slim <id>` | `--platform ios\|android`, `--force` | Applies the slimming profile (`simslim on` / `avdslim on`); blocks booted non-self owned devices unless `--force` |
+| `mobpool gui` | `--host HOST`, `--port PORT`, `--no-open` | Launches the unified local web dashboard (`127.0.0.1`, `localhost`, or `::1` only; default port `8765`) |
+
+---
+
+## Unified Local Web GUI (`mobpool gui`)
+
+Prefer a visual device manager instead of switching between Xcode Devices and Android Studio Device Manager?
+
+```bash
+mobpool gui                  # Starts on http://127.0.0.1:8765/ and opens your browser
+mobpool gui --port 0 --no-open  # Automatic free port, print URL only
+```
+
+- **Single pane of glass**: Inspect every installed and booted iOS simulator and Android emulator side-by-side with RAM/CPU usage, slim status, pool membership, and owner badges.
+- **Safe by default**: Uses the exact same lock, cap, memory-floor, and ownership guardrails as the CLI. Non-pool boot, force release, and force slim on booted foreign devices require explicit confirmation dialogs.
+- **Localhost-only security**: Refuses non-loopback `--host` bindings and validates `Host`, `Origin`, `Sec-Fetch-Site`, and a per-session `X-Mobpool-Token` CSRF header on every mutating request.
 
 ---
 
@@ -277,9 +301,12 @@ mobpool/
 ├── skill/SKILL.md               # Drop-in AI agent skill instructions
 ├── src/mobpool/
 │   ├── cli.py                   # Unified CLI subcommands
+│   ├── service.py               # Shared CLI & GUI lifecycle/pool/audit logic
+│   ├── gui.py                   # Localhost-only HTTP server & async job controller
+│   ├── gui_assets.py            # Embedded HTML/CSS/JS dashboard assets
 │   ├── config.py                # Env + local config.json loader
 │   ├── claims.py                # TTL leases & external owner resolution
-│   ├── lock.py                  # Atomic mkdir boot lock + stale recovery
+│   ├── lock.py                  # Atomic mkdir boot/state locks + stale recovery
 │   ├── memory.py                # macOS memory_pressure check
 │   ├── pool_store.py            # Pool persistence (~/.config/mobpool/pools.json)
 │   └── platforms/

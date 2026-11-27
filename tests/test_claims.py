@@ -102,6 +102,45 @@ class TestClaims(unittest.TestCase):
             assert app_owner is not None
             self.assertEqual(app_owner.source, "app")
 
+    def test_match_workspace_false_requires_explicit_self_owner(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cfg = make_cfg(root, owner_label="mobpool-gui", workspace=root / "shared-ws")
+            write_claim(cfg, "SIM-CLI", "ios", owner="cli-agent", ttl_sec=600, now=1000.0)
+            write_claim(
+                cfg,
+                "SIM-GUI",
+                "ios",
+                owner="mobpool-gui",
+                ttl_sec=600,
+                now=1000.0,
+                workspace="",
+            )
+
+            # Without match_workspace, same-workspace CLI claim is NOT self
+            cli_owner = resolve_owner(
+                cfg,
+                "SIM-CLI",
+                now=1050.0,
+                match_workspace=False,
+                self_owners={"mobpool-gui"},
+            )
+            self.assertIsNotNone(cli_owner)
+            assert cli_owner is not None
+            self.assertFalse(cli_owner.is_self)
+
+            # Explicit self_owners match marks GUI claim as self
+            gui_owner = resolve_owner(
+                cfg,
+                "SIM-GUI",
+                now=1050.0,
+                match_workspace=False,
+                self_owners={"mobpool-gui"},
+            )
+            self.assertIsNotNone(gui_owner)
+            assert gui_owner is not None
+            self.assertTrue(gui_owner.is_self)
+
 
 if __name__ == "__main__":
     unittest.main()

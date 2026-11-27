@@ -7,8 +7,10 @@ import json
 import os
 from pathlib import Path
 import shutil
+import tempfile
 import time
 from typing import Iterator
+import uuid
 
 
 class LockTimeoutError(RuntimeError):
@@ -44,16 +46,50 @@ def _is_stale(lock_dir: Path, stale_after_sec: float, now: float) -> bool:
     return False
 
 
+def _write_lock_meta(lock_dir: Path, payload: dict[str, object]) -> None:
+    raw = json.dumps(payload)
+    tmp_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=lock_dir,
+            prefix=".meta.",
+            suffix=".tmp",
+            delete=False,
+        ) as fh:
+            tmp_path = fh.name
+            fh.write(raw)
+        os.replace(tmp_path, lock_dir / "meta.json")
+    except Exception:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        raise
+
+
+def _lock_token_matches(lock_dir: Path, token: str) -> bool:
+    meta_file = lock_dir / "meta.json"
+    try:
+        meta = json.loads(meta_file.read_text(encoding="utf-8"))
+    except Exception:
+        return False
+    return meta.get("token") == token
+
+
 @contextmanager
 def acquire_lock(
     lock_dir: Path,
     timeout_sec: float = 10.0,
     poll_sec: float = 0.25,
-    stale_after_sec: float = 120.0,
+    stale_after_sec: float = 360.0,
 ) -> Iterator[None]:
     lock_dir.parent.mkdir(parents=True, exist_ok=True)
     deadline = time.monotonic() + timeout_sec
     acquired = False
+    token = uuid.uuid4().hex
 
     while True:
         try:
@@ -71,13 +107,28 @@ def acquire_lock(
                 )
             time.sleep(poll_sec)
 
-    meta_path = lock_dir / "meta.json"
-    meta_path.write_text(
-        json.dumps({"pid": os.getpid(), "created_at": time.time()}),
-        encoding="utf-8",
+    _write_lock_meta(
+        lock_dir,
+        {"pid": os.getpid(), "created_at": time.time(), "token": token},
     )
     try:
         yield
     finally:
-        if acquired:
+        if acquired and _lock_token_matches(lock_dir, token):
             shutil.rmtree(lock_dir, ignore_errors=True)
+
+
+@contextmanager
+def state_lock(
+    config_dir: Path,
+    timeout_sec: float = 10.0,
+    poll_sec: float = 0.05,
+    stale_after_sec: float = 60.0,
+) -> Iterator[None]:
+    with acquire_lock(
+        config_dir / "state.lock",
+        timeout_sec=timeout_sec,
+        poll_sec=poll_sec,
+        stale_after_sec=stale_after_sec,
+    ):
+        yield

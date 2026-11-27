@@ -131,6 +131,54 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(rc, 0)
             self.assertIn("RELEASED Pixel_9_Bot", buf.getvalue())
 
+    def test_cli_slim_respects_ownership_and_gui_rejects_non_loopback(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cfg_a = make_cfg(root, owner_label="agent-a", workspace=root / "ws-a")
+            cfg_b = make_cfg(root, owner_label="agent-b", workspace=root / "ws-b")
+            adapters = {
+                "ios": FakeAdapter("ios", [DeviceInfo("ios", "SIM-1", "iPhone 18 Pro", "Shutdown", "27.2")]),
+                "android": FakeAdapter("android", []),
+            }
+
+            with redirect_stdout(io.StringIO()):
+                self.assertEqual(
+                    run_cli(["init", "--platform", "ios"], cfg=cfg_a, adapters=adapters, free_pct_fn=lambda: 60),
+                    0,
+                )
+                self.assertEqual(
+                    run_cli(["acquire", "--platform", "ios"], cfg=cfg_a, adapters=adapters, free_pct_fn=lambda: 60),
+                    0,
+                )
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = run_cli(["slim", "SIM-1", "--platform", "ios"], cfg=cfg_b, adapters=adapters, free_pct_fn=lambda: 60)
+            self.assertEqual(rc, 1)
+            self.assertIn("BLOCKED", buf.getvalue())
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = run_cli(
+                    ["slim", "SIM-1", "--platform", "ios", "--force"],
+                    cfg=cfg_b,
+                    adapters=adapters,
+                    free_pct_fn=lambda: 60,
+                )
+            self.assertEqual(rc, 0)
+            self.assertIn("slimmed SIM-1", buf.getvalue())
+
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                rc = run_cli(
+                    ["gui", "--host", "0.0.0.0", "--no-open"],
+                    cfg=cfg_a,
+                    adapters=adapters,
+                    free_pct_fn=lambda: 60,
+                )
+            self.assertEqual(rc, 2)
+            self.assertIn("non-loopback", buf.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()
