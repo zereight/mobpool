@@ -223,16 +223,38 @@ mobpool audit --json
 
 ## Unified Local Web GUI (`mobpool gui`)
 
-Prefer a visual device manager instead of switching between Xcode Devices and Android Studio Device Manager?
+Manage iOS simulators and Android emulators from one local browser dashboard instead of switching between Xcode Devices and Android Studio Device Manager. Because it runs on Python's standard library, there are no extra dependencies and no macOS code-signing or Apple Developer account requirements.
+
+### Launch
 
 ```bash
-mobpool gui                  # Starts on http://127.0.0.1:8765/ and opens your browser
-mobpool gui --port 0 --no-open  # Automatic free port, print URL only
+# Start on http://127.0.0.1:8765/ and open in your default browser
+mobpool gui
+
+# Bind an automatic free port and print the URL without opening a browser
+mobpool gui --port 0 --no-open
+
+# Use a custom loopback host/port (only 127.0.0.1, localhost, or ::1 are allowed)
+mobpool gui --host localhost --port 9000
 ```
 
-- **Single pane of glass**: Inspect every installed and booted iOS simulator and Android emulator side-by-side with RAM/CPU usage, slim status, pool membership, and owner badges.
-- **Safe by default**: Uses the exact same lock, cap, memory-floor, and ownership guardrails as the CLI. Non-pool boot, force release, and force slim on booted foreign devices require explicit confirmation dialogs.
-- **Localhost-only security**: Refuses non-loopback `--host` bindings and validates `Host`, `Origin`, `Sec-Fetch-Site`, and a per-session `X-Mobpool-Token` CSRF header on every mutating request.
+Press `Ctrl+C` in the terminal to stop the local server.
+
+### Dashboard Workflow
+
+- **System overview & live refresh**: The top summary strip displays booted counts against your iOS/Android/total caps, total RAM/CPU usage, macOS free memory %, and pool status. The table auto-refreshes every 8 seconds while the tab is visible (`Auto 8s` toggle) or on demand via **Refresh**.
+- **Filter & search**: Filter by platform (`All`, `iOS`, `Android`), filter by state (`All`, `Booted`, `Shutdown`, `In Pool`, `Claimed`, `Orphan`), or search by device name, UDID, AVD name, or owner label.
+- **Quick acquire & lease controls**: Set **Owner**, **TTL (min)**, and **Keep apps on release**, then click **Acquire iOS** or **Acquire Android** to boot and claim the next available slim pool device.
+- **Per-device actions**:
+  - **Booted devices**: **Renew** (extends a `mobpool` TTL lease), **Slim** (applies `simslim`/`avdslim`), or **Release** / **Shut down** / **Force Release**.
+  - **In-pool (shut down)**: **Boot & Claim**, **Slim**, or **Remove** from the saved pool.
+  - **Outside pool (shut down)**: **Add to pool** (prepares slim profile and saves to pool) or **Boot** (non-pool boot with confirmation).
+- **Pool setup & activity log**: Click **Init pool** in the header to select target platforms (`all`, `ios`, `android`) and an optional pool size per platform. In-flight jobs and recent actions appear in the **Activity** panel at the bottom.
+
+### Guardrails & Localhost Security
+
+- **Same guardrails as the CLI**: Every action goes through the shared `service.py` layer, enforcing atomic boot locks, concurrency caps, the macOS free-memory floor, and ownership checks. Risky actions (booting outside the pool, **Force Release**, and **Force Slim** on another owner's booted device) require explicit confirmation dialogs.
+- **Loopback-only & CSRF-protected**: Refuses non-loopback `--host` values, sends a strict CSP header, and validates `Host`, `Origin`, `Sec-Fetch-Site`, and a per-session `X-Mobpool-Token` header on every mutating request.
 
 ---
 
