@@ -12,7 +12,106 @@
 
 *Stop parallel AI agents from melting your Mac or killing each other's simulators and emulators.*
 
+<br/>
+
+<img src="docs/assets/gui-overview.png" alt="mobpool unified web dashboard showing a running slim iOS simulator, an externally owned device locked from takeover, and ready Android emulators" width="820" />
+
+<p><sub>Manage iOS simulators and Android emulators in one local dashboard — one-click slim start, live RAM and cap guardrails, TTL leases, and automatic protection for devices owned by other sessions.</sub></p>
+
 </div>
+
+---
+
+## 30-Second Quick Start
+
+### 1. Install `mobpool`
+
+```bash
+# Required for iOS simulators (macOS)
+brew install mobai-app/tap/simslim
+
+# Install mobpool (pick one)
+uv tool install git+https://github.com/zereight/mobpool.git
+# or: pipx install git+https://github.com/zereight/mobpool.git
+```
+
+<details>
+<summary>Alternative: zero-build symlink or editable pip install</summary>
+
+```bash
+# Option A: Symlink to PATH (zero build step)
+git clone https://github.com/zereight/mobpool.git ~/Documents/mobpool
+mkdir -p ~/.local/bin
+ln -sf ~/Documents/mobpool/bin/mobpool ~/.local/bin/mobpool
+# Make sure ~/.local/bin is in your PATH (default macOS zsh does not include it):
+export PATH="$HOME/.local/bin:$PATH"
+
+# Option B: Editable pip install
+git clone https://github.com/zereight/mobpool.git
+cd mobpool && pip install -e .
+```
+
+</details>
+
+### 2. Launch (Humans) or Register Skill (AI Agents)
+
+**For humans — open the local web dashboard:**
+
+```bash
+mobpool gui
+```
+
+Opens `http://127.0.0.1:8765/`. On first run, click **Auto-pick best devices** (or run `mobpool init --platform all`), then click **Start iOS** or **Start Android**.
+
+**For AI coding agents — register [`skill/SKILL.md`](skill/SKILL.md):**
+
+```bash
+git clone https://github.com/zereight/mobpool.git ~/Documents/mobpool
+mkdir -p ~/.agents/skills ~/.claude/skills
+ln -sfn ~/Documents/mobpool/skill ~/.agents/skills/mobpool
+ln -sfn ~/.agents/skills/mobpool ~/.claude/skills/mobpool
+```
+
+Once linked, agents (Codex, Claude Code, Cursor, OpenMyBot, etc.) automatically call `mobpool preflight` / `acquire` / `renew` / `release` before booting or stopping any virtual device.
+
+---
+
+## See It in Action
+
+### Web Dashboard (`mobpool gui`)
+
+<div align="center">
+<img src="docs/assets/gui-demo.gif" alt="mobpool web dashboard demo: starting a slim iOS simulator, extending its lease with +1h, starting an Android emulator, and hitting the 2/2 concurrency cap guardrail" width="820" />
+</div>
+
+<p align="center"><sub>One-click <strong>Start iOS</strong> (slim boot + 1h TTL) → <strong>+1h</strong> lease renewal → <strong>Start Android</strong> with live progress → automatic <strong>2 / 2</strong> concurrency cap guardrail preventing Mac overload.</sub></p>
+
+### CLI Multi-Agent Guardrail
+
+```bash
+# 1. Agent A acquires a slim iOS simulator (1h TTL by default)
+mobpool acquire --platform ios --owner feat-login
+# → A1B2C3D4-1111-4000-8000-000000000001
+
+# 2. Inspect running devices, RAM/CPU, slim status, leases, and Mac free memory
+mobpool audit
+
+# 3. Agent B cannot accidentally kill Agent A's simulator
+mobpool release A1B2C3D4-1111-4000-8000-000000000001
+# → BLOCKED: owned by feat-login (pass --force to override)
+
+# 4. Agent A extends the lease during long runs, then releases cleanly
+mobpool renew A1B2C3D4-1111-4000-8000-000000000001 --ttl 3600
+mobpool release A1B2C3D4-1111-4000-8000-000000000001
+```
+
+Example `mobpool audit` output (use `--json` for scripts and agent pipelines):
+
+```text
+Booted devices: 1/2 (iOS 1/2, Android 0/1), total RAM 2.41 GB
+  [ios] A1B2C3D4-1111-4000-8000-000000000001  iPhone 17 Pro (iOS 26.2)  2.41 GB RAM  11.8% CPU  slim (163/173)  [claimed:feat-login]
+Mac memory free: 61% (floor 25%)
+```
 
 ---
 
@@ -131,80 +230,6 @@ sequenceDiagram
 
 ---
 
-## Installation
-
-### Option 1: Symlink to `PATH` (Recommended, zero build step)
-
-```bash
-git clone https://github.com/zereight/mobpool.git ~/Documents/mobpool
-mkdir -p ~/.local/bin
-ln -sf ~/Documents/mobpool/bin/mobpool ~/.local/bin/mobpool
-
-# Verify
-mobpool audit
-```
-
-### Option 2: Editable `pip` install
-
-```bash
-git clone https://github.com/zereight/mobpool.git
-cd mobpool
-pip install -e .
-```
-
-### Option 3: Register as an AI Agent Skill
-
-Link [`skill/`](skill/SKILL.md) into your agent's global skill directory so agents automatically run `mobpool` before booting or shutting down any virtual device:
-
-```bash
-# Shared agent skills SSOT (Codex, Cursor, Pi, etc.)
-ln -sfn ~/Documents/mobpool/skill ~/.agents/skills/mobpool
-
-# Claude Code / OpenMyBot
-ln -sfn ~/.agents/skills/mobpool ~/.claude/skills/mobpool
-```
-
----
-
-## Quick Start
-
-```bash
-# 1. Select and prepare slim pool devices (skips devices owned by other sessions)
-mobpool init --platform all
-
-# 2. Inspect running devices, RAM/CPU, slim status, leases, and Mac free memory
-mobpool audit
-
-# 3. Acquire a slim iOS simulator or Android emulator (1h TTL by default)
-mobpool acquire --platform ios --owner feat-login
-mobpool acquire --platform android --owner feat-login --ttl 1800
-
-# 4. Extend an active lease during long test runs
-mobpool renew <udid-or-avd-or-serial> --ttl 3600
-
-# 5. Clean installed apps, shut down cleanly, and drop the lease
-mobpool release <udid-or-avd-or-serial>
-
-# 6. Open the unified local web dashboard for iOS + Android
-mobpool gui
-```
-
-### Example `mobpool audit` Output
-
-```text
-Booted devices: 1/2 (iOS 1/2, Android 0/1), total RAM 2.84 GB
-  [ios] 7E5F796B-FB31-4E7E-9F41-2197B7FDC00E  iPhone 17 (iOS 27.2)  2.84 GB RAM  18.2% CPU  slim (163/173)  [claimed:feat-login]
-Mac memory free: 64% (floor 25%)
-```
-
-Use `--json` for machine-readable output in scripts and agent pipelines:
-
-```bash
-mobpool audit --json
-```
-
----
-
 ## CLI Reference
 
 | Command | Flags | Description |
@@ -316,6 +341,7 @@ Any device owned by another session is marked `[claimed:...]` in `audit`, skippe
 ```text
 mobpool/
 ├── bin/mobpool                  # Executable CLI entrypoint
+├── docs/assets/                 # README dashboard screenshot & demo GIF
 ├── pyproject.toml               # Python 3.10+ packaging (zero dependencies)
 ├── skill/SKILL.md               # Drop-in AI agent skill instructions
 ├── src/mobpool/
