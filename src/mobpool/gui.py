@@ -545,7 +545,10 @@ class _MobpoolRequestHandler(BaseHTTPRequestHandler):
         if include_csp:
             self.send_header("Content-Security-Policy", CSP_HEADER)
         self.end_headers()
-        self.wfile.write(body)
+        try:
+            self.wfile.write(body)
+        except (BrokenPipeError, ConnectionResetError):
+            return
 
     def _send_json(self, status: int, payload: dict[str, Any]) -> None:
         raw = json.dumps(payload).encode("utf-8")
@@ -672,6 +675,13 @@ class _MobpoolRequestHandler(BaseHTTPRequestHandler):
                 APP_JS.encode("utf-8"),
                 "application/javascript; charset=utf-8",
             )
+            return
+
+        if path == "/favicon.ico":
+            self.send_response(HTTPStatus.NO_CONTENT)
+            self.send_header("Cache-Control", "no-store")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
             return
 
         if path == "/api/state":

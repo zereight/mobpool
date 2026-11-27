@@ -113,6 +113,8 @@ class TestGUI(unittest.TestCase):
                 status, _, js = _request(port, "GET", "/app.js")
                 self.assertEqual(status, 200)
                 self.assertIn("X-Mobpool-Token", js.decode("utf-8"))
+                status, _, _ = _request(port, "GET", "/favicon.ico")
+                self.assertEqual(status, 204)
 
                 # Host header DNS rebinding rejected
                 status, _, _ = _request(port, "GET", "/api/state", headers={"Host": "evil.example:8765"})
