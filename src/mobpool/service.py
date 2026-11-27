@@ -435,19 +435,22 @@ def init_pools(
             _emit(f"[{plat}] skipped: {reason}")
             continue
         target_n = count if count is not None else cap_for(cfg, plat)
-        owned: set[str] = set()
+        excluded: set[str] = set()
         for dev in adapter.list_available():
+            if dev.state == "Booted":
+                excluded.add(dev.device_id)
+                continue
             owner = resolve_device_owner(
                 cfg,
                 adapter,
                 dev.device_id,
-                check_app=(dev.state == "Booted"),
+                check_app=False,
                 match_workspace=match_workspace,
                 self_owners=self_owners,
             )
             if owner is not None:
-                owned.add(dev.device_id)
-        picks = adapter.select_pool(target_n, owned_ids=owned)
+                excluded.add(dev.device_id)
+        picks = adapter.select_pool(target_n, owned_ids=excluded)
         if not picks:
             _emit(f"[{plat}] no free devices found to add to pool.")
             continue
@@ -490,6 +493,8 @@ def set_pool_membership(
     in_pool: bool,
     *,
     prepare: bool = True,
+    match_workspace: bool = True,
+    self_owners: set[str] | None = None,
 ) -> ServiceResult:
     adapter = adapters.get(platform)
     if adapter is None:
@@ -509,9 +514,38 @@ def set_pool_membership(
             ok=False, exit_code=2, message=f"Unknown {platform} device: {device_or_runtime_id}"
         )
     canonical_id = dev.device_id
+    is_booted = dev.state == "Booted"
+    prepared = False
 
-    if in_pool and prepare:
-        adapter.prepare_pool_device(canonical_id)
+    if in_pool:
+        prune_expired_claims(cfg)
+        owner = resolve_device_owner(
+            cfg,
+            adapter,
+            canonical_id,
+            check_app=is_booted,
+            match_workspace=match_workspace,
+            self_owners=self_owners,
+        )
+        if owner is not None and not owner.is_self:
+            return ServiceResult(
+                ok=False,
+                exit_code=1,
+                message=(
+                    f"BLOCKED: {canonical_id} is currently in use by {owner.display()}. "
+                    "Wait until it is released before adding to pool."
+                ),
+                data={"owner": _owner_to_dict(owner), "prepared": False},
+            )
+        existing_pools = load_pools(cfg)
+        already_in_pool = canonical_id in existing_pools.get(platform, [])
+        if prepare and not is_booted and not already_in_pool:
+            try:
+                with acquire_lock(cfg.lock_dir):
+                    adapter.prepare_pool_device(canonical_id)
+                    prepared = True
+            except LockTimeoutError as exc:
+                return ServiceResult(ok=False, exit_code=1, message=str(exc))
 
     try:
         with state_lock(cfg.config_dir):
@@ -537,6 +571,7 @@ def set_pool_membership(
             "platform": platform,
             "device_id": canonical_id,
             "in_pool": in_pool,
+            "prepared": prepared,
             "pools": pools,
         },
     )
@@ -869,13 +904,13 @@ def slim_device(
         match_workspace=match_workspace,
         self_owners=self_owners,
     )
-    if is_booted and owner is not None and not owner.is_self and not (force or force_env):
+    if owner is not None and not owner.is_self and not (force or force_env):
         return ServiceResult(
             ok=False,
             exit_code=1,
             message=(
-                f"BLOCKED: {canonical_id} is booted and owned by {owner.display()}. "
-                "Slimming may reboot the device (pass --force to override)."
+                f"BLOCKED: {canonical_id} is owned by {owner.display()}. "
+                "Slimming may boot or reboot the device (pass --force to override)."
             ),
             data={"requires_force": True, "owner": _owner_to_dict(owner)},
         )

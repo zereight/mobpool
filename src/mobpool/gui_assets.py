@@ -15,87 +15,92 @@ def render_index_html(csrf_token: str, default_owner: str) -> str:
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="mobpool-token" content="{escaped_token}">
   <meta name="mobpool-default-owner" content="{escaped_owner}">
-  <title>mobpool — iOS &amp; Android Device Pool</title>
+  <title>mobpool — Virtual Devices</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <div class="app">
-    <header class="header">
-      <div class="title-group">
+    <header class="topbar">
+      <div class="brand">
         <h1>mobpool</h1>
-        <span class="subtitle">iOS &amp; Android device pool</span>
+        <span id="status-pill" class="status-pill">Loading...</span>
       </div>
-      <div class="header-controls">
-        <span id="last-updated" class="timestamp">Loading...</span>
-        <label class="check-label" title="Auto-refresh every 8s while this tab is visible">
-          <input id="auto-refresh-toggle" type="checkbox" checked>
-          <span>Auto 8s</span>
-        </label>
-        <button id="btn-refresh" class="btn" type="button">Refresh</button>
-        <button id="btn-init-pool" class="btn" type="button">Init pool</button>
+      <div class="topbar-actions">
+        <button id="btn-refresh" class="btn btn-quiet" type="button" title="Refresh device list">Refresh</button>
       </div>
     </header>
 
-    <section id="summary-grid" class="metrics-strip" aria-label="System summary"></section>
-
-    <section class="lease-bar" aria-label="Quick acquire">
-      <div class="lease-inputs">
-        <label class="field">
-          <span>Owner</span>
-          <input id="input-owner" type="text" value="{escaped_owner}" placeholder="mobpool-gui" maxlength="80">
-        </label>
-        <label class="field field-ttl">
-          <span>TTL (min)</span>
-          <input id="input-ttl-min" type="number" min="1" max="1440" value="60">
-        </label>
-        <label class="check-label" title="Preserve installed apps when clicking Release">
-          <input id="keep-apps-toggle" type="checkbox">
-          <span>Keep apps on release</span>
-        </label>
-      </div>
-      <div class="lease-actions">
-        <button id="btn-acquire-ios" class="btn btn-primary" type="button">Acquire iOS</button>
-        <button id="btn-acquire-android" class="btn btn-primary" type="button">Acquire Android</button>
-      </div>
+    <section class="hero" aria-label="Quick start">
+      <button id="btn-acquire-ios" class="start-card" type="button">
+        <span class="start-card-main">
+          <span class="start-card-title">Start iOS</span>
+          <span id="sub-acquire-ios" class="start-card-sub">Checking simulators...</span>
+        </span>
+        <span class="start-card-arrow" aria-hidden="true">+</span>
+      </button>
+      <button id="btn-acquire-android" class="start-card" type="button">
+        <span class="start-card-main">
+          <span class="start-card-title">Start Android</span>
+          <span id="sub-acquire-android" class="start-card-sub">Checking emulators...</span>
+        </span>
+        <span class="start-card-arrow" aria-hidden="true">+</span>
+      </button>
     </section>
 
+    <section id="guard-banner" class="notice notice-warn hidden" aria-live="polite"></section>
     <section id="inflight-banner" class="notice notice-info hidden" aria-live="polite"></section>
     <section id="error-banner" class="notice notice-error hidden" role="alert"></section>
 
-    <main class="surface">
-      <div class="toolbar">
-        <div class="toolbar-filters">
-          <div id="platform-tabs" class="segmented" role="tablist" aria-label="Platform filter"></div>
-          <div id="state-filters" class="state-tabs" role="group" aria-label="State filter"></div>
+    <main class="sections">
+      <section class="panel" aria-labelledby="heading-running">
+        <div class="panel-head">
+          <div class="panel-title-wrap">
+            <h2 id="heading-running">Running</h2>
+            <span id="running-count" class="count-pill">0</span>
+          </div>
+          <span id="running-ram" class="panel-hint"></span>
         </div>
-        <div class="search-wrap">
-          <input id="search-input" type="search" placeholder="Filter by name, UDID, AVD, owner...">
-        </div>
-      </div>
+        <div id="running-list" class="device-list"></div>
+      </section>
 
-      <div class="table-wrap">
-        <table class="device-table">
-          <thead>
-            <tr>
-              <th class="col-device">Device</th>
-              <th class="col-status">Status</th>
-              <th class="col-owner">Ownership</th>
-              <th class="col-metrics">Resources</th>
-              <th class="col-actions">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="device-tbody"></tbody>
-        </table>
-        <div id="empty-state" class="empty-state hidden">No matching devices.</div>
-      </div>
+      <section class="panel" aria-labelledby="heading-quickstart">
+        <div class="panel-head panel-head-wrap">
+          <div class="panel-title-block">
+            <div class="panel-title-wrap">
+              <h2 id="heading-quickstart">Quick-start</h2>
+              <span id="quickstart-count" class="count-pill">0</span>
+            </div>
+            <p class="panel-sub">Devices picked by Start iOS and Start Android</p>
+          </div>
+          <div id="platform-tabs" class="segmented" role="tablist" aria-label="Platform filter"></div>
+        </div>
+        <div id="quickstart-list" class="device-list"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="heading-other">
+        <div class="other-bar">
+          <button id="btn-toggle-other" class="collapse-toggle" type="button" aria-expanded="false" aria-controls="other-body">
+            <span id="other-chevron" class="chevron" aria-hidden="true">&#9656;</span>
+            <span id="heading-other" class="collapse-title">Other installed devices</span>
+            <span id="other-count" class="count-pill">0</span>
+          </button>
+          <input id="search-input" class="search-input" type="search" placeholder="Search devices...">
+        </div>
+        <div id="other-body" class="other-body hidden">
+          <div id="other-list" class="device-list"></div>
+        </div>
+      </section>
     </main>
 
-    <footer id="activity-panel" class="activity-footer is-empty">
-      <div class="activity-head">
-        <h2>Activity</h2>
-        <span id="activity-count" class="activity-count">0 events</span>
+    <footer id="activity-footer" class="activity-footer hidden">
+      <button id="btn-toggle-activity" class="collapse-toggle collapse-toggle-sm" type="button" aria-expanded="false" aria-controls="activity-body">
+        <span id="activity-chevron" class="chevron" aria-hidden="true">&#9656;</span>
+        <span>Recent activity</span>
+        <span id="activity-count" class="count-pill">0</span>
+      </button>
+      <div id="activity-body" class="activity-body hidden">
+        <div id="activity-list" class="activity-list"></div>
       </div>
-      <div id="activity-list" class="activity-list"></div>
     </footer>
   </div>
 
@@ -122,53 +127,63 @@ def render_index_html(csrf_token: str, default_owner: str) -> str:
 STYLES_CSS = r"""
 :root {
   color-scheme: light dark;
-  --bg: #f6f6f7;
+  --bg: #f5f5f7;
   --surface: #ffffff;
-  --surface-subtle: #f1f1f3;
-  --surface-hover: #f5f5f7;
-  --border: #e4e4e7;
-  --border-strong: #d1d1d6;
-  --text: #141416;
-  --text-secondary: #52525b;
-  --text-muted: #71717a;
-  --ink-bg: #18181b;
-  --ink-bg-hover: #27272a;
-  --ink-text: #ffffff;
-  --focus: #2563eb;
-  --green: #16a34a;
-  --amber: #b45309;
-  --red: #dc2626;
-  --red-subtle: #fef2f2;
-  --red-border: #fecaca;
-  --radius: 6px;
-  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, Consolas, monospace;
+  --surface-subtle: #f8f8fa;
+  --surface-hover: #f0f1f4;
+  --border: #e4e4e9;
+  --border-strong: #d1d1da;
+  --text: #16161a;
+  --text-secondary: #585866;
+  --text-muted: #7e7e8f;
+  --primary: #18181c;
+  --primary-hover: #2d2d35;
+  --primary-text: #ffffff;
+  --accent: #2563eb;
+  --accent-bg: rgba(37, 99, 235, 0.09);
+  --green: #16803d;
+  --green-bg: rgba(22, 128, 61, 0.11);
+  --amber: #a86108;
+  --amber-bg: rgba(168, 97, 8, 0.11);
+  --red: #c62828;
+  --red-bg: rgba(198, 40, 40, 0.1);
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-sm: 8px;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-pop: 0 12px 32px rgba(0, 0, 0, 0.14);
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Monaco, monospace;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e0e10;
-    --surface: #151518;
-    --surface-subtle: #1c1c20;
-    --surface-hover: #1d1d22;
-    --border: #26262b;
-    --border-strong: #36363d;
-    --text: #f1f1f4;
-    --text-secondary: #a1a1aa;
-    --text-muted: #7c7c86;
-    --ink-bg: #f4f4f5;
-    --ink-bg-hover: #e4e4e7;
-    --ink-text: #111113;
-    --focus: #60a5fa;
-    --green: #22c55e;
-    --amber: #f59e0b;
+    --bg: #111114;
+    --surface: #18181c;
+    --surface-subtle: #1e1e24;
+    --surface-hover: #25252d;
+    --border: #2a2a33;
+    --border-strong: #3a3a46;
+    --text: #f3f3f6;
+    --text-secondary: #a7a7b5;
+    --text-muted: #7c7c8c;
+    --primary: #f3f3f6;
+    --primary-hover: #dcdce3;
+    --primary-text: #111114;
+    --accent: #60a5fa;
+    --accent-bg: rgba(96, 165, 250, 0.14);
+    --green: #4ade80;
+    --green-bg: rgba(74, 222, 128, 0.13);
+    --amber: #fbbf24;
+    --amber-bg: rgba(251, 191, 36, 0.13);
     --red: #f87171;
-    --red-subtle: rgba(239, 68, 68, 0.1);
-    --red-border: rgba(239, 68, 68, 0.3);
+    --red-bg: rgba(248, 113, 113, 0.14);
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.25);
+    --shadow-pop: 0 14px 36px rgba(0, 0, 0, 0.55);
   }
 }
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
 }
 
@@ -178,19 +193,9 @@ html, body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: 14px;
   line-height: 1.45;
   -webkit-font-smoothing: antialiased;
-}
-
-button, input, select {
-  font: inherit;
-  color: inherit;
-}
-
-:focus-visible {
-  outline: 2px solid var(--focus);
-  outline-offset: 1px;
 }
 
 .hidden {
@@ -198,95 +203,101 @@ button, input, select {
 }
 
 .app {
-  max-width: 1240px;
+  max-width: 860px;
   margin: 0 auto;
-  padding: 20px 24px 36px;
+  padding: 24px 20px 44px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 16px;
 }
 
-.header {
+.topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   flex-wrap: wrap;
-  padding-bottom: 4px;
 }
 
-.title-group {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.title-group h1 {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.subtitle {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.header-controls {
+.brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   flex-wrap: wrap;
 }
 
-.timestamp {
-  font-size: 12px;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+.brand h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
 }
 
-.check-label {
+.status-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  border: 1px solid var(--border);
   font-size: 12px;
+  font-weight: 500;
   color: var(--text-secondary);
-  user-select: none;
+  font-variant-numeric: tabular-nums;
 }
 
-.check-label input[type="checkbox"] {
-  margin: 0;
-  width: 14px;
-  height: 14px;
-  accent-color: var(--ink-bg);
+.status-pill.is-warn {
+  color: var(--amber);
+  background: var(--amber-bg);
+  border-color: transparent;
+}
+
+.status-pill.is-danger {
+  color: var(--red);
+  background: var(--red-bg);
+  border-color: transparent;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .btn {
+  appearance: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 28px;
-  padding: 0 10px;
-  border-radius: var(--radius);
+  gap: 6px;
+  height: 34px;
+  padding: 0 13px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border-strong);
   background: var(--surface);
   color: var(--text);
-  font-size: 12px;
+  font-family: inherit;
+  font-size: 13px;
   font-weight: 500;
+  cursor: pointer;
   white-space: nowrap;
-  transition: background-color 180ms ease, border-color 180ms ease;
+  transition: background-color 0.12s ease, border-color 0.12s ease, opacity 0.12s ease;
 }
 
 .btn:hover:not(:disabled) {
-  background: var(--surface-subtle);
-  border-color: var(--text-muted);
-  transition-duration: 120ms;
+  background: var(--surface-hover);
 }
 
-.btn:active:not(:disabled) {
-  background: var(--border);
-  transition-duration: 0ms;
+.btn:focus-visible,
+.start-card:focus-visible,
+.collapse-toggle:focus-visible,
+.seg-btn:focus-visible,
+.menu-item:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .btn:disabled {
@@ -294,48 +305,35 @@ button, input, select {
   cursor: not-allowed;
 }
 
-.btn-primary {
-  background: var(--ink-bg);
-  border-color: var(--ink-bg);
-  color: var(--ink-text);
+.btn-quiet {
+  border-color: var(--border);
+  color: var(--text-secondary);
 }
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--ink-bg-hover);
-  border-color: var(--ink-bg-hover);
-}
-
-.btn-primary:active:not(:disabled) {
-  opacity: 0.85;
-  transition-duration: 0ms;
-}
-
-.btn-emphasis {
-  background: var(--surface-subtle);
+.btn-quiet.is-active {
+  background: var(--surface-hover);
   border-color: var(--border-strong);
   color: var(--text);
 }
 
-.btn-ghost {
-  background: transparent;
-  border-color: transparent;
-  color: var(--text-secondary);
+.btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--primary-text);
 }
 
-.btn-ghost:hover:not(:disabled) {
-  background: var(--surface-subtle);
-  border-color: var(--border);
-  color: var(--text);
+.btn-primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 
 .btn-danger {
-  background: transparent;
-  border-color: var(--red-border);
   color: var(--red);
+  border-color: var(--border-strong);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: var(--red-subtle);
+  background: var(--red-bg);
   border-color: var(--red);
 }
 
@@ -350,518 +348,597 @@ button, input, select {
 }
 
 .btn-sm {
-  height: 26px;
-  padding: 0 9px;
-  font-size: 12px;
+  height: 30px;
+  padding: 0 11px;
+  font-size: 12.5px;
+}
+
+.btn-icon {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
 }
 
 .btn-copy {
-  height: 20px;
-  min-width: 48px;
-  padding: 0 6px;
-  font-size: 11px;
-  font-weight: 500;
-  border-radius: 4px;
-  border: 1px solid var(--border);
+  height: 22px;
+  padding: 0 7px;
+  border-radius: 6px;
+  border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
-}
-
-.btn-copy:hover:not(:disabled) {
-  background: var(--surface-subtle);
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
-.metrics-strip {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.metric-cell {
-  padding: 10px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  border-right: 1px solid var(--border);
-}
-
-.metric-cell:last-child {
-  border-right: none;
-}
-
-.metric-label {
+  font-family: var(--font-mono);
   font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-.metric-main {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-variant-numeric: tabular-nums;
-}
-
-.metric-value {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-}
-
-.metric-value.is-warn {
-  color: var(--amber);
-}
-
-.metric-value.is-danger {
-  color: var(--red);
-}
-
-.metric-detail {
-  font-size: 12px;
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lease-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 8px 12px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-}
-
-.lease-inputs {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-}
-
-.field {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-
-.field input {
-  height: 28px;
-  padding: 0 8px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border-strong);
-  background: var(--bg);
+.btn-copy:hover {
+  background: var(--surface-hover);
   color: var(--text);
-  font-size: 12px;
-  width: 148px;
 }
 
-.field-ttl input {
-  width: 66px;
-  font-variant-numeric: tabular-nums;
+.btn-copy.copied {
+  color: var(--green);
+  background: var(--green-bg);
 }
 
-.lease-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.notice {
-  padding: 8px 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border);
-  background: var(--surface);
-  font-size: 12px;
+.setting-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
+.setting-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.modal-select,
+.modal-input {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.check-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.check-row input[type="checkbox"] {
+  margin-top: 3px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.check-row span {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.check-row strong {
+  font-weight: 500;
+  color: var(--text);
+}
+
+.check-row small {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.start-card {
+  appearance: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: border-color 0.14s ease, background-color 0.14s ease, transform 0.1s ease;
+}
+
+.start-card:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--surface-subtle);
+}
+
+.start-card:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.start-card:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.start-card-main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.start-card-title {
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.015em;
+}
+
+.start-card-sub {
+  font-size: 12.5px;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.start-card-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  background: var(--primary);
+  color: var(--primary-text);
+  font-size: 18px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.start-card:disabled .start-card-arrow {
+  background: var(--border-strong);
+  color: var(--text-muted);
+}
+
+.notice {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.notice-info {
+  background: var(--accent-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.notice-warn {
+  background: var(--amber-bg);
+  color: var(--amber);
+}
+
 .notice-error {
-  border-color: var(--red-border);
-  background: var(--red-subtle);
+  background: var(--red-bg);
   color: var(--red);
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .inflight-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
 }
 
 .spinner {
-  width: 12px;
-  height: 12px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
-  border: 1.5px solid var(--border-strong);
-  border-top-color: var(--text);
-  animation: spin 0.7s linear infinite;
+  border: 2px solid var(--border-strong);
+  border-top-color: var(--accent);
+  animation: spin 0.75s linear infinite;
   flex-shrink: 0;
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
-.surface {
+.sections {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  overflow: hidden;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
 }
 
-.toolbar {
+.panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
-  padding: 8px 12px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--border);
 }
 
-.toolbar-filters {
+.panel-head-wrap {
+  flex-wrap: wrap;
+}
+
+.panel-title-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.panel-title-wrap {
   display: flex;
   align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.panel-sub {
+  margin: 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.panel-hint {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.count-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .segmented {
   display: inline-flex;
+  padding: 2px;
+  border-radius: var(--radius-sm);
   background: var(--surface-subtle);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 2px;
-  gap: 2px;
 }
 
 .seg-btn {
-  height: 24px;
-  padding: 0 9px;
-  border-radius: 4px;
-  border: 1px solid transparent;
+  appearance: none;
+  border: none;
   background: transparent;
   color: var(--text-secondary);
+  font-family: inherit;
   font-size: 12px;
   font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
 }
 
-.seg-btn:hover:not(.active) {
+.seg-btn:hover {
   color: var(--text);
 }
 
 .seg-btn.active {
   background: var(--surface);
-  border-color: var(--border);
   color: var(--text);
+  box-shadow: var(--shadow-sm);
 }
 
-.state-tabs {
-  display: inline-flex;
+.device-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.device-row {
+  display: flex;
   align-items: center;
-  gap: 2px;
-  flex-wrap: wrap;
-}
-
-.filter-btn {
-  height: 26px;
-  padding: 0 8px;
-  border-radius: 4px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text-secondary);
-  font-size: 12px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
-.filter-btn:hover:not(.active) {
-  background: var(--surface-subtle);
-  color: var(--text);
-}
-
-.filter-btn.active {
-  background: var(--surface-subtle);
-  border-color: var(--border-strong);
-  color: var(--text);
-}
-
-.search-wrap {
-  flex: 0 1 240px;
-  min-width: 180px;
-}
-
-.search-wrap input {
-  width: 100%;
-  height: 28px;
-  padding: 0 10px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border-strong);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 12px;
-}
-
-.table-wrap {
-  overflow-x: auto;
-}
-
-.device-table {
-  width: 100%;
-  border-collapse: collapse;
-  table-layout: auto;
-}
-
-.device-table th {
-  text-align: left;
-  padding: 8px 12px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-muted);
+  justify-content: space-between;
+  gap: 14px;
+  padding: 13px 16px;
   border-bottom: 1px solid var(--border);
-  white-space: nowrap;
 }
 
-.device-table td {
-  padding: 9px 12px;
-  border-bottom: 1px solid var(--border);
-  vertical-align: middle;
-}
-
-.device-table tbody tr:last-child td {
+.device-row:last-child {
   border-bottom: none;
 }
 
-.device-table tbody tr:hover {
-  background: var(--surface-hover);
-}
-
-.device-table tbody tr.is-booted {
-  background: var(--surface);
-}
-
-.col-actions {
-  text-align: right;
-  width: 1%;
-  white-space: nowrap;
-}
-
-.device-table th.col-actions {
-  text-align: right;
-}
-
-.device-cell {
+.device-info {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  min-width: 260px;
-}
-
-.device-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  gap: 4px;
   min-width: 0;
 }
 
-.plat-tag {
+.device-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.plat-badge {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 50px;
-  height: 18px;
-  flex-shrink: 0;
-  border-radius: 4px;
-  border: 1px solid var(--border-strong);
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 500;
+  height: 20px;
+  padding: 0 7px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  font-size: 11px;
+  font-weight: 600;
   color: var(--text-secondary);
 }
 
 .device-name {
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 240px;
 }
 
 .device-os {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
-  white-space: nowrap;
+}
+
+.device-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 12.5px;
+  color: var(--text-secondary);
+}
+
+.state-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.state-tag.is-green {
+  color: var(--green);
+}
+
+.state-tag.is-green .dot {
+  background: var(--green);
+}
+
+.state-tag.is-amber {
+  color: var(--amber);
+}
+
+.state-tag.is-amber .dot {
+  background: var(--amber);
+}
+
+.state-tag.is-red {
+  color: var(--red);
+}
+
+.state-tag.is-red .dot {
+  background: var(--red);
+}
+
+.meta-pill {
+  font-size: 11.5px;
+  color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
 
-.device-id-row {
+.slim-tag {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--green-bg);
+  color: var(--green);
+  font-weight: 500;
+}
+
+.row-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding-left: 58px;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
-.mono-id {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
-  white-space: nowrap;
+.menu-wrap {
+  position: relative;
 }
 
-.status-cell,
-.owner-cell,
-.metrics-cell {
+.menu-pop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  min-width: 196px;
+  padding: 5px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  box-shadow: var(--shadow-pop);
+  z-index: 30;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
-.status-line {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 500;
-  white-space: nowrap;
+.menu-item {
+  appearance: none;
+  width: 100%;
+  text-align: left;
+  padding: 7px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
 }
 
-.status-line.is-muted {
-  color: var(--text-muted);
-  font-weight: 400;
+.menu-item:hover:not(:disabled) {
+  background: var(--surface-hover);
 }
 
-.status-line.is-danger {
+.menu-item:disabled {
+  opacity: 0.42;
+  cursor: not-allowed;
+}
+
+.menu-item.is-danger {
   color: var(--red);
 }
 
-.status-line.is-warn {
-  color: var(--amber);
-}
-
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: var(--border-strong);
-}
-
-.dot-booted {
-  background: var(--green);
-}
-
-.dot-locked {
-  background: var(--red);
-}
-
-.dot-self {
-  background: var(--focus);
-}
-
-.dot-warn {
-  background: var(--amber);
-}
-
-.pool-flag {
-  display: inline-block;
-  width: fit-content;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--text-secondary);
-  padding-left: 12px;
-}
-
-.sub-text {
-  font-size: 11px;
-  color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.metrics-text {
-  font-size: 12px;
-  font-weight: 500;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.actions-cell {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 6px;
-  white-space: nowrap;
-}
-
-.empty-state {
-  padding: 28px 16px;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 12px;
-}
-
-.activity-footer {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 12px;
-}
-
-.activity-head {
+.empty-box {
+  padding: 20px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: var(--text-muted);
+  font-size: 13px;
 }
 
-.activity-head h2 {
-  margin: 0;
-  font-size: 12px;
+.other-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  flex-wrap: wrap;
+}
+
+.collapse-toggle {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 14px;
   font-weight: 600;
+  cursor: pointer;
+  padding: 4px 2px;
+}
+
+.collapse-toggle-sm {
+  font-size: 12.5px;
+  font-weight: 500;
   color: var(--text-secondary);
 }
 
-.activity-count {
+.chevron {
+  display: inline-block;
   font-size: 11px;
   color: var(--text-muted);
-  font-variant-numeric: tabular-nums;
+  transition: transform 0.14s ease;
 }
 
-.activity-footer.is-empty .activity-list {
-  display: none;
+.chevron.is-open {
+  transform: rotate(90deg);
+}
+
+.search-input {
+  height: 32px;
+  width: 220px;
+  max-width: 100%;
+  padding: 0 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface-subtle);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 12.5px;
+}
+
+.other-body {
+  border-top: 1px solid var(--border);
+}
+
+.activity-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 2px;
+}
+
+.activity-body {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
 }
 
 .activity-list {
-  margin-top: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border);
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 200px;
+  max-height: 220px;
   overflow-y: auto;
 }
 
-.activity-item {
+.activity-row {
   display: flex;
   align-items: baseline;
   gap: 10px;
   font-size: 12px;
+  color: var(--text-secondary);
 }
 
 .activity-time {
@@ -872,69 +949,66 @@ button, input, select {
 }
 
 .activity-status {
-  font-size: 11px;
-  font-weight: 500;
+  font-weight: 600;
   flex-shrink: 0;
-  min-width: 66px;
 }
 
 .activity-status.is-ok {
   color: var(--green);
 }
 
-.activity-status.is-err {
+.activity-status.is-fail {
   color: var(--red);
 }
 
 .activity-msg {
-  color: var(--text-secondary);
   word-break: break-word;
 }
 
 .toast-container {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
+  right: 18px;
+  bottom: 18px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 50;
-  max-width: 360px;
+  z-index: 60;
+  max-width: 380px;
 }
 
 .toast {
-  padding: 9px 12px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border-strong);
-  background: var(--surface);
-  color: var(--text);
-  font-size: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  background: var(--primary);
+  color: var(--primary-text);
+  font-size: 13px;
+  box-shadow: var(--shadow-pop);
 }
 
-.toast-err {
-  border-color: var(--red-border);
-  color: var(--red);
+.toast.is-error {
+  background: var(--red);
+  color: #ffffff;
 }
 
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.42);
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  z-index: 60;
+  padding: 20px;
+  z-index: 80;
 }
 
 .modal-card {
   width: 100%;
-  max-width: 440px;
+  max-width: 420px;
   background: var(--surface);
-  border: 1px solid var(--border-strong);
-  border-radius: 8px;
-  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-pop);
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -942,63 +1016,44 @@ button, input, select {
 
 .modal-card h3 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  text-wrap: balance;
+  font-size: 16px;
+  font-weight: 650;
 }
 
 .modal-body {
   margin: 0;
-  font-size: 13px;
+  font-size: 13.5px;
   color: var(--text-secondary);
   white-space: pre-line;
-  text-wrap: pretty;
 }
 
 .modal-extra {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.modal-select {
-  height: 30px;
-  padding: 0 8px;
-  border-radius: var(--radius);
-  border: 1px solid var(--border-strong);
-  background: var(--bg);
-  color: var(--text);
-  font-size: 12px;
-  width: 100%;
+  gap: 10px;
 }
 
 .modal-footer {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
-  padding-top: 4px;
+  margin-top: 4px;
 }
 
-@media (max-width: 860px) {
-  .app {
-    padding: 14px;
+@media (max-width: 640px) {
+  .hero {
+    grid-template-columns: 1fr;
   }
-  .metrics-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .device-row {
+    flex-direction: column;
+    align-items: flex-start;
   }
-  .metric-cell:nth-child(2) {
-    border-right: none;
+  .row-actions {
+    width: 100%;
+    justify-content: flex-end;
   }
-  .metric-cell:nth-child(1),
-  .metric-cell:nth-child(2) {
-    border-bottom: 1px solid var(--border);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
+  .search-input {
+    width: 100%;
   }
 }
 """
@@ -1009,21 +1064,22 @@ APP_JS = r"""
   "use strict";
 
   const tokenMeta = document.querySelector('meta[name="mobpool-token"]');
-  const CSRF_TOKEN = tokenMeta ? tokenMeta.getAttribute("content") || "" : "";
-  const POLL_INTERVAL_MS = 8000;
-  const JOB_POLL_MS = 700;
+  const defaultOwnerMeta = document.querySelector('meta[name="mobpool-default-owner"]');
+  const CSRF_TOKEN = tokenMeta ? tokenMeta.content : "";
+  const DEFAULT_OWNER = defaultOwnerMeta ? defaultOwnerMeta.content : "mobpool-gui";
 
   const uiState = {
-    snapshot: null,
+    state: null,
     platformFilter: "all",
-    stateFilter: "all",
     search: "",
-    autoRefresh: true,
+    allDevicesOpen: false,
+    activityOpen: false,
+    openMenuId: null,
     pollTimer: null,
-    jobTimer: null,
-    loading: false,
-    seenCompletedJobs: new Set(),
-    ttlInitialized: false,
+    jobPollTimer: null,
+    inFlight: false,
+    seenFinishedJobs: new Set(),
+    modalConfirmHandler: null,
   };
 
   function el(tag, attrs, children) {
@@ -1032,19 +1088,19 @@ APP_JS = r"""
       for (const [key, val] of Object.entries(attrs)) {
         if (val === null || val === undefined || val === false) continue;
         if (key === "class") {
-          node.className = String(val);
+          node.className = val;
         } else if (key === "text") {
           node.textContent = String(val);
         } else if (key.startsWith("on") && typeof val === "function") {
           node.addEventListener(key.slice(2).toLowerCase(), val);
-        } else if (val === true) {
-          node.setAttribute(key, "");
+        } else if (key === "disabled" || key === "checked") {
+          node[key] = Boolean(val);
         } else {
           node.setAttribute(key, String(val));
         }
       }
     }
-    if (Array.isArray(children)) {
+    if (children) {
       for (const child of children) {
         if (child === null || child === undefined || child === false) continue;
         node.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
@@ -1054,56 +1110,76 @@ APP_JS = r"""
   }
 
   function clearNode(node) {
-    while (node.firstChild) {
+    while (node && node.firstChild) {
       node.removeChild(node.firstChild);
     }
   }
 
   function formatGb(bytes) {
-    const num = Number(bytes || 0);
-    if (!num) return "0.00 GB";
-    return (num / 1e9).toFixed(2) + " GB";
+    const val = Number(bytes || 0);
+    if (!Number.isFinite(val) || val <= 0) return "";
+    return (val / (1024 ** 3)).toFixed(1) + " GB";
   }
 
   function formatTime(epochSec) {
     if (!epochSec) return "";
-    return new Date(epochSec * 1000).toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
+    try {
+      return new Date(epochSec * 1000).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      });
+    } catch (_) {
+      return "";
+    }
+  }
+
+  function shortId(id) {
+    const raw = String(id || "");
+    if (raw.length <= 12) return raw;
+    return raw.slice(0, 8);
   }
 
   function showToast(message, isError) {
     const container = document.getElementById("toast-container");
     const toast = el("div", {
-      class: "toast" + (isError ? " toast-err" : ""),
+      class: "toast" + (isError ? " is-error" : ""),
       text: message,
     });
     container.appendChild(toast);
-    window.setTimeout(() => toast.remove(), isError ? 5500 : 3200);
+    window.setTimeout(() => {
+      if (toast.parentNode) toast.parentNode.removeChild(toast);
+    }, isError ? 5200 : 3200);
   }
 
   function showErrorBanner(message) {
     const banner = document.getElementById("error-banner");
+    clearNode(banner);
     if (!message) {
       banner.classList.add("hidden");
-      banner.textContent = "";
       return;
     }
-    banner.textContent = message;
     banner.classList.remove("hidden");
+    banner.appendChild(el("span", { text: message }));
+    banner.appendChild(
+      el("button", {
+        type: "button",
+        class: "btn btn-sm",
+        text: "Dismiss",
+        onClick: () => showErrorBanner(""),
+      })
+    );
   }
 
   async function apiGet(path) {
     const resp = await fetch(path, {
       method: "GET",
-      headers: { Accept: "application/json" },
       cache: "no-store",
+      headers: { Accept: "application/json" },
     });
     const data = await resp.json().catch(() => ({}));
     if (!resp.ok) {
-      throw new Error(data.error || data.message || "Request failed (" + resp.status + ")");
+      throw new Error(data.error || "Request failed (" + resp.status + ")");
     }
     return data;
   }
@@ -1111,10 +1187,11 @@ APP_JS = r"""
   async function apiPost(path, payload) {
     const resp = await fetch(path, {
       method: "POST",
+      cache: "no-store",
       headers: {
         "Content-Type": "application/json",
-        "X-Mobpool-Token": CSRF_TOKEN,
         Accept: "application/json",
+        "X-Mobpool-Token": CSRF_TOKEN,
       },
       body: JSON.stringify(payload || {}),
     });
@@ -1122,34 +1199,23 @@ APP_JS = r"""
     if (!resp.ok) {
       const err = new Error(data.error || data.message || "Request failed (" + resp.status + ")");
       err.status = resp.status;
-      err.payload = data;
       throw err;
     }
     return data;
   }
 
-  function getOwnerInput() {
-    const input = document.getElementById("input-owner");
-    return (input ? input.value : "").trim();
+  function getDefaultOwner() {
+    return DEFAULT_OWNER;
   }
 
-  function getTtlSecInput() {
-    const input = document.getElementById("input-ttl-min");
-    const mins = parseInt(input ? input.value : "60", 10);
-    if (!Number.isFinite(mins) || mins < 1) return 3600;
-    return Math.max(60, mins * 60);
-  }
-
-  function getKeepAppsPref() {
-    const toggle = document.getElementById("keep-apps-toggle");
-    return Boolean(toggle && toggle.checked);
+  function getDefaultTtlSec() {
+    const sec = Number(uiState.state && uiState.state.config && uiState.state.config.default_ttl_sec);
+    return Number.isFinite(sec) && sec >= 60 ? sec : 3600;
   }
 
   function activeJobs() {
-    if (!uiState.snapshot || !Array.isArray(uiState.snapshot.in_flight)) {
-      return [];
-    }
-    return uiState.snapshot.in_flight;
+    const jobs = (uiState.state && uiState.state.in_flight) || [];
+    return Array.isArray(jobs) ? jobs : [];
   }
 
   function isDeviceBusy(deviceId) {
@@ -1158,8 +1224,36 @@ APP_JS = r"""
 
   function isAcquireBusy(platform) {
     return activeJobs().some(
-      (job) => (job.action === "acquire" && job.platform === platform) || job.action === "init"
+      (job) =>
+        (job.action === "acquire" && job.platform === platform) ||
+        (job.action === "pool" && job.platform === platform) ||
+        job.action === "init"
     );
+  }
+
+  function getStartBlocker(state, platform) {
+    if (!state) return "Loading...";
+    const meta = (state.platforms && state.platforms[platform]) || {};
+    const platName = platform === "ios" ? "iOS" : "Android";
+    if (!meta.available) {
+      return meta.reason ? platName + " unavailable (" + meta.reason + ")" : platName + " unavailable";
+    }
+    const totalBooted = Number(state.total_booted || 0);
+    const totalCap = Number((state.caps && state.caps.total) || 2);
+    if (totalBooted >= totalCap) {
+      return totalBooted + " of " + totalCap + " devices running — stop one first";
+    }
+    const platBooted = Number((state.counts && state.counts[platform]) || 0);
+    const platCap = Number((state.caps && state.caps[platform]) || 1);
+    if (platBooted >= platCap) {
+      return platName + " limit reached (" + platBooted + "/" + platCap + ") — stop one first";
+    }
+    const freePct = state.free_memory_pct;
+    const minFree = Number(state.min_free_pct || 25);
+    if (typeof freePct === "number" && freePct < minFree) {
+      return "Mac memory is low (" + freePct + "% free, needs " + minFree + "%)";
+    }
+    return "";
   }
 
   function openModal(options) {
@@ -1168,7 +1262,6 @@ APP_JS = r"""
     const body = document.getElementById("modal-body");
     const extra = document.getElementById("modal-extra");
     const confirmBtn = document.getElementById("modal-confirm");
-    const cancelBtn = document.getElementById("modal-cancel");
 
     title.textContent = options.title || "Confirm";
     body.textContent = options.body || "";
@@ -1177,65 +1270,50 @@ APP_JS = r"""
       extra.appendChild(options.extraNode);
     }
     confirmBtn.textContent = options.confirmLabel || "Confirm";
-    confirmBtn.className = "btn " + (options.confirmClass || "btn-danger-solid");
-
-    const cleanup = () => {
-      backdrop.classList.add("hidden");
-      confirmBtn.onclick = null;
-      cancelBtn.onclick = null;
-      backdrop.onclick = null;
-      document.removeEventListener("keydown", onKey);
-    };
-
-    const onKey = (ev) => {
-      if (ev.key === "Escape") cleanup();
-    };
-
-    cancelBtn.onclick = cleanup;
-    backdrop.onclick = (ev) => {
-      if (ev.target === backdrop) cleanup();
-    };
-    confirmBtn.onclick = async () => {
-      cleanup();
-      if (options.onConfirm) {
-        await options.onConfirm();
-      }
-    };
-    document.addEventListener("keydown", onKey);
+    confirmBtn.className = options.danger ? "btn btn-danger-solid" : "btn btn-primary";
+    uiState.modalConfirmHandler = options.onConfirm || null;
     backdrop.classList.remove("hidden");
-    confirmBtn.focus();
+  }
+
+  function closeModal() {
+    const backdrop = document.getElementById("modal-backdrop");
+    backdrop.classList.add("hidden");
+    uiState.modalConfirmHandler = null;
   }
 
   async function submitAction(path, payload) {
+    uiState.openMenuId = null;
+    showErrorBanner("");
     try {
-      const data = await apiPost(path, payload);
-      if (data.job) {
-        showToast(data.job.label + " started", false);
+      const res = await apiPost(path, payload);
+      if (res.job) {
+        showToast(res.job.label + "...", false);
         await fetchState(true);
         scheduleJobPoll();
-      } else if (data.message) {
-        showToast(data.message, false);
+      } else if (res.message) {
+        showToast(res.message, !res.ok);
         await fetchState(true);
       }
     } catch (err) {
-      showToast(err.message || String(err), true);
+      showToast(err.message, true);
+      showErrorBanner(err.message);
       await fetchState(true);
     }
   }
 
   function scheduleJobPoll() {
-    if (uiState.jobTimer) {
-      window.clearTimeout(uiState.jobTimer);
-      uiState.jobTimer = null;
+    if (uiState.jobPollTimer) {
+      window.clearTimeout(uiState.jobPollTimer);
+      uiState.jobPollTimer = null;
     }
-    if (activeJobs().length === 0) return;
-    uiState.jobTimer = window.setTimeout(async () => {
-      uiState.jobTimer = null;
-      await fetchState(false);
-      if (activeJobs().length > 0) {
-        scheduleJobPoll();
-      }
-    }, JOB_POLL_MS);
+    if (activeJobs().length > 0) {
+      uiState.jobPollTimer = window.setTimeout(async () => {
+        await fetchState(false);
+        if (activeJobs().length > 0) {
+          scheduleJobPoll();
+        }
+      }, 700);
+    }
   }
 
   function scheduleNextPoll() {
@@ -1243,147 +1321,261 @@ APP_JS = r"""
       window.clearTimeout(uiState.pollTimer);
       uiState.pollTimer = null;
     }
-    if (!uiState.autoRefresh || document.visibilityState === "hidden") {
-      return;
-    }
+    if (document.hidden) return;
     uiState.pollTimer = window.setTimeout(async () => {
-      uiState.pollTimer = null;
       await fetchState(false);
-    }, POLL_INTERVAL_MS);
+      scheduleNextPoll();
+    }, 8000);
   }
 
   function notifyNewCompletedJobs(recentJobs) {
     if (!Array.isArray(recentJobs)) return;
-    const firstLoad = uiState.snapshot === null;
     for (const job of recentJobs) {
-      if (job.status === "running") continue;
-      if (uiState.seenCompletedJobs.has(job.id)) continue;
-      uiState.seenCompletedJobs.add(job.id);
-      if (!firstLoad) {
-        showToast(job.message || (job.label + " " + job.status), job.status !== "succeeded");
+      if (!job || !job.id || job.status === "running") continue;
+      if (uiState.seenFinishedJobs.has(job.id)) continue;
+      uiState.seenFinishedJobs.add(job.id);
+      if (uiState.state !== null) {
+        const ok = job.status === "succeeded";
+        showToast((ok ? "Done: " : "Failed: ") + (job.message || job.label), !ok);
       }
     }
   }
 
   async function fetchState(forceRefresh) {
-    if (uiState.loading) return;
-    uiState.loading = true;
+    if (uiState.inFlight && !forceRefresh) return;
+    uiState.inFlight = true;
     try {
       const url = forceRefresh ? "/api/state?refresh=1" : "/api/state";
       const data = await apiGet(url);
-      notifyNewCompletedJobs(data.recent_jobs);
-      uiState.snapshot = data;
-      showErrorBanner("");
-      if (!uiState.ttlInitialized && data.config && data.config.default_ttl_sec) {
-        const ttlInput = document.getElementById("input-ttl-min");
-        if (ttlInput) {
-          ttlInput.value = String(Math.max(1, Math.round(data.config.default_ttl_sec / 60)));
+      const hadState = uiState.state !== null;
+      const recentJobs = Array.isArray(data.recent_jobs) ? data.recent_jobs : [];
+      if (!hadState) {
+        for (const job of recentJobs) {
+          if (job && job.id && job.status !== "running") {
+            uiState.seenFinishedJobs.add(job.id);
+          }
         }
-        uiState.ttlInitialized = true;
+      } else {
+        notifyNewCompletedJobs(recentJobs);
       }
+      uiState.state = data;
       renderAll();
       if (activeJobs().length > 0) {
         scheduleJobPoll();
       }
     } catch (err) {
-      showErrorBanner("Failed to fetch mobpool state: " + (err.message || String(err)));
+      showErrorBanner("Cannot reach mobpool: " + err.message);
     } finally {
-      uiState.loading = false;
-      scheduleNextPoll();
+      uiState.inFlight = false;
     }
   }
 
-  function renderSummary(state) {
-    const grid = document.getElementById("summary-grid");
-    clearNode(grid);
+  async function copyTargetId(targetId, btn) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(targetId);
+      } else {
+        const area = el("textarea", { text: targetId });
+        document.body.appendChild(area);
+        area.select();
+        document.execCommand("copy");
+        document.body.removeChild(area);
+      }
+      const prev = btn.textContent;
+      btn.textContent = "Copied!";
+      btn.classList.add("copied");
+      window.setTimeout(() => {
+        btn.textContent = prev;
+        btn.classList.remove("copied");
+      }, 1200);
+    } catch (_) {
+      showToast("Copy failed", true);
+    }
+  }
 
+  function confirmForceStop(dev) {
+    const keepBox = el("input", { type: "checkbox", checked: false });
+    const extra = el("label", { class: "check-row" }, [
+      keepBox,
+      el("span", {}, [
+        el("strong", { text: "Keep installed apps on device" }),
+        el("small", { text: "Turn on to avoid deleting their app data." }),
+      ]),
+    ]);
+    openModal({
+      title: "Stop someone else's device?",
+      body:
+        dev.name +
+        " is currently in use by " +
+        dev.owner.label +
+        ".\nStopping it may interrupt their work.",
+      extraNode: extra,
+      confirmLabel: "Force stop",
+      danger: true,
+      onConfirm: () => {
+        submitAction("/api/release", {
+          device_id: dev.device_id,
+          keep_apps: keepBox.checked,
+          force: true,
+        });
+      },
+    });
+  }
+
+  function confirmForceSlim(dev) {
+    openModal({
+      title: "Optimize someone else's device?",
+      body:
+        dev.name +
+        " is currently in use by " +
+        dev.owner.label +
+        ".\nOptimizing RAM (Slim) may boot or reboot the device.",
+      confirmLabel: "Optimize anyway",
+      danger: true,
+      onConfirm: () => {
+        submitAction("/api/slim", {
+          device_id: dev.device_id,
+          platform: dev.platform,
+          force: true,
+        });
+      },
+    });
+  }
+
+  function openInitPoolModal(defaultPlatform) {
+    const platSelect = el("select", { class: "modal-select" }, [
+      el("option", { value: "all", text: "Both iOS and Android" }),
+      el("option", { value: "ios", text: "iOS only" }),
+      el("option", { value: "android", text: "Android only" }),
+    ]);
+    if (defaultPlatform && ["all", "ios", "android"].includes(defaultPlatform)) {
+      platSelect.value = defaultPlatform;
+    }
+    const countInput = el("input", {
+      type: "number",
+      min: "1",
+      max: "8",
+      placeholder: "Automatic (recommended)",
+      class: "modal-input",
+    });
+    const wrap = el("div", { class: "setting-field" }, [
+      el("label", { class: "setting-label", text: "Platform" }),
+      platSelect,
+      el("label", { class: "setting-label", text: "Devices per platform (optional)" }),
+      countInput,
+    ]);
+    openModal({
+      title: "Auto-pick Quick-start devices",
+      body:
+        "Picks available shut-down devices, optimizes them for low RAM, and saves them to your Quick-start list.\nDevices currently running or in use are skipped.",
+      extraNode: wrap,
+      confirmLabel: "Auto-pick",
+      danger: false,
+      onConfirm: () => {
+        const payload = { platform: platSelect.value };
+        const parsed = parseInt(countInput.value, 10);
+        if (Number.isFinite(parsed) && parsed >= 1) {
+          payload.count = parsed;
+        }
+        submitAction("/api/init", payload);
+      },
+    });
+  }
+
+  function renderTopStatus(state) {
+    const pill = document.getElementById("status-pill");
     const totalBooted = Number(state.total_booted || 0);
     const totalCap = Number((state.caps && state.caps.total) || 2);
     const iosCount = Number((state.counts && state.counts.ios) || 0);
     const iosCap = Number((state.caps && state.caps.ios) || 2);
     const androidCount = Number((state.counts && state.counts.android) || 0);
     const androidCap = Number((state.caps && state.caps.android) || 1);
-    const capTone = totalBooted >= totalCap ? " is-danger" : "";
-
     const freePct = state.free_memory_pct;
     const minFree = Number(state.min_free_pct || 25);
-    const memText = typeof freePct === "number" ? freePct + "%" : "n/a";
-    const memTone =
-      typeof freePct === "number"
-        ? freePct < minFree
-          ? " is-danger"
-          : freePct < minFree + 10
-            ? " is-warn"
-            : ""
-        : "";
 
-    const iosMeta = (state.platforms && state.platforms.ios) || {};
-    const androidMeta = (state.platforms && state.platforms.android) || {};
-    const ttlMins = Math.round(((state.config && state.config.default_ttl_sec) || 3600) / 60);
+    const memPart = typeof freePct === "number" ? " · " + freePct + "% RAM free" : "";
+    pill.textContent = totalBooted + " / " + totalCap + " running" + memPart;
+    pill.title =
+      "iOS " +
+      iosCount +
+      "/" +
+      iosCap +
+      " · Android " +
+      androidCount +
+      "/" +
+      androidCap +
+      (typeof freePct === "number" ? " · min " + minFree + "% free RAM" : "");
 
-    const backendValue =
-      (iosMeta.available ? "iOS " + (iosMeta.installed_count || 0) : "iOS off") +
-      " · " +
-      (androidMeta.available ? "Android " + (androidMeta.installed_count || 0) : "Android off");
-    const backendDetail =
-      "TTL " + ttlMins + "m" + (state.config && state.config.app_id ? " · App guard on" : "");
-
-    const cells = [
-      {
-        label: "Booted",
-        value: totalBooted + " / " + totalCap,
-        tone: capTone,
-        detail: "iOS " + iosCount + "/" + iosCap + " · Android " + androidCount + "/" + androidCap,
-      },
-      {
-        label: "Mac free memory",
-        value: memText,
-        tone: memTone,
-        detail: "Floor " + minFree + "%",
-      },
-      {
-        label: "Virtual RAM",
-        value: formatGb(state.total_ram_bytes),
-        tone: "",
-        detail: "Pool: iOS " + (iosMeta.pool_count || 0) + " · Android " + (androidMeta.pool_count || 0),
-      },
-      {
-        label: "Backends",
-        value: backendValue,
-        tone: !iosMeta.available && !androidMeta.available ? " is-danger" : "",
-        detail: backendDetail,
-        title: [iosMeta.reason, androidMeta.reason].filter((r) => r && r !== "ok").join(" | "),
-      },
-    ];
-
-    for (const item of cells) {
-      grid.appendChild(
-        el("div", { class: "metric-cell", title: item.title || null }, [
-          el("span", { class: "metric-label", text: item.label }),
-          el("div", { class: "metric-main" }, [
-            el("span", { class: "metric-value" + item.tone, text: item.value }),
-          ]),
-          el("span", { class: "metric-detail", text: item.detail }),
-        ])
-      );
+    pill.className = "status-pill";
+    if (totalBooted >= totalCap || (typeof freePct === "number" && freePct < minFree)) {
+      pill.classList.add("is-danger");
+    } else if (typeof freePct === "number" && freePct < minFree + 10) {
+      pill.classList.add("is-warn");
     }
 
-    const btnIos = document.getElementById("btn-acquire-ios");
-    const btnAndroid = document.getElementById("btn-acquire-android");
-    if (btnIos) {
-      btnIos.disabled = !iosMeta.available || isAcquireBusy("ios");
-      btnIos.title = iosMeta.available ? "Boot next free iOS pool simulator" : iosMeta.reason || "";
+    const refreshBtn = document.getElementById("btn-refresh");
+    if (refreshBtn && state.timestamp) {
+      refreshBtn.title = "Refresh device list (updated " + formatTime(state.timestamp) + ")";
     }
-    if (btnAndroid) {
-      btnAndroid.disabled = !androidMeta.available || isAcquireBusy("android");
-      btnAndroid.title = androidMeta.available
-        ? "Boot next free Android pool emulator"
-        : androidMeta.reason || "";
+  }
+
+  function renderHero(state) {
+    const guardBanner = document.getElementById("guard-banner");
+    const totalBooted = Number(state.total_booted || 0);
+    const totalCap = Number((state.caps && state.caps.total) || 2);
+    const freePct = state.free_memory_pct;
+    const minFree = Number(state.min_free_pct || 25);
+
+    let globalWarn = "";
+    if (typeof freePct === "number" && freePct < minFree) {
+      globalWarn =
+        "Mac memory is low (" +
+        freePct +
+        "% free, needs at least " +
+        minFree +
+        "%) — close apps or stop a device before starting another.";
+    } else if (totalBooted >= totalCap) {
+      globalWarn =
+        totalBooted +
+        " of " +
+        totalCap +
+        " devices are running — stop a running device below to start another.";
+    }
+    if (globalWarn) {
+      guardBanner.textContent = globalWarn;
+      guardBanner.classList.remove("hidden");
+    } else {
+      guardBanner.textContent = "";
+      guardBanner.classList.add("hidden");
     }
 
-    const updated = document.getElementById("last-updated");
-    if (updated) {
-      updated.textContent = "Updated " + formatTime(state.timestamp);
+    for (const plat of ["ios", "android"]) {
+      const btn = document.getElementById("btn-acquire-" + plat);
+      const sub = document.getElementById("sub-acquire-" + plat);
+      if (!btn || !sub) continue;
+      const meta = (state.platforms && state.platforms[plat]) || {};
+      const count = Number((state.counts && state.counts[plat]) || 0);
+      const cap = Number((state.caps && state.caps[plat]) || 1);
+      const poolCount = Number(meta.pool_count || 0);
+      const busy = isAcquireBusy(plat);
+      const blocker = getStartBlocker(state, plat);
+
+      if (!meta.available) {
+        btn.disabled = true;
+        sub.textContent = meta.reason ? "Unavailable (" + meta.reason + ")" : "Not installed";
+      } else if (busy) {
+        btn.disabled = true;
+        sub.textContent = "Starting...";
+      } else if (blocker) {
+        btn.disabled = true;
+        sub.textContent = blocker;
+      } else if (poolCount === 0) {
+        btn.disabled = true;
+        sub.textContent = "Pick a Quick-start device below first";
+      } else {
+        btn.disabled = false;
+        sub.textContent = count + " / " + cap + " running · " + poolCount + " in Quick-start";
+      }
     }
   }
 
@@ -1402,56 +1594,31 @@ APP_JS = r"""
         el("div", { class: "inflight-row" }, [
           el("span", { class: "spinner", "aria-hidden": "true" }),
           el("strong", { text: job.label }),
-          el("span", { class: "sub-text", text: elapsed + "s" }),
+          el("span", { class: "meta-pill", text: elapsed + "s" }),
         ])
       );
     }
   }
 
-  function renderFilters(devices) {
-    const platformTabs = document.getElementById("platform-tabs");
-    clearNode(platformTabs);
-    const iosTotal = devices.filter((d) => d.platform === "ios").length;
-    const androidTotal = devices.filter((d) => d.platform === "android").length;
-    const tabDefs = [
-      { id: "all", label: "All (" + devices.length + ")" },
-      { id: "ios", label: "iOS (" + iosTotal + ")" },
-      { id: "android", label: "Android (" + androidTotal + ")" },
+  function renderPlatformTabs(devices) {
+    const tabs = document.getElementById("platform-tabs");
+    clearNode(tabs);
+    const defs = [
+      { id: "all", label: "All" },
+      { id: "ios", label: "iOS" },
+      { id: "android", label: "Android" },
     ];
-    for (const tab of tabDefs) {
-      platformTabs.appendChild(
+    for (const item of defs) {
+      tabs.appendChild(
         el("button", {
           type: "button",
           role: "tab",
-          "aria-selected": String(uiState.platformFilter === tab.id),
-          class: "seg-btn" + (uiState.platformFilter === tab.id ? " active" : ""),
-          text: tab.label,
-          onClick: () => {
-            uiState.platformFilter = tab.id;
-            renderAll();
-          },
-        })
-      );
-    }
-
-    const stateFilters = document.getElementById("state-filters");
-    clearNode(stateFilters);
-    const defs = [
-      { id: "all", label: "All" },
-      { id: "booted", label: "Booted" },
-      { id: "shutdown", label: "Shutdown" },
-      { id: "pool", label: "In Pool" },
-      { id: "claimed", label: "Claimed" },
-      { id: "orphan", label: "Orphan" },
-    ];
-    for (const item of defs) {
-      stateFilters.appendChild(
-        el("button", {
-          type: "button",
-          class: "filter-btn" + (uiState.stateFilter === item.id ? " active" : ""),
+          "aria-selected": String(uiState.platformFilter === item.id),
+          class: "seg-btn" + (uiState.platformFilter === item.id ? " active" : ""),
           text: item.label,
           onClick: () => {
-            uiState.stateFilter = item.id;
+            uiState.platformFilter = item.id;
+            uiState.openMenuId = null;
             renderAll();
           },
         })
@@ -1459,357 +1626,466 @@ APP_JS = r"""
     }
   }
 
-  function matchesFilters(dev) {
-    if (uiState.platformFilter !== "all" && dev.platform !== uiState.platformFilter) {
-      return false;
-    }
-    if (uiState.stateFilter === "booted" && dev.state !== "Booted") return false;
-    if (uiState.stateFilter === "shutdown" && dev.state === "Booted") return false;
-    if (uiState.stateFilter === "pool" && !dev.in_pool) return false;
-    if (uiState.stateFilter === "claimed" && !dev.owner) return false;
-    if (uiState.stateFilter === "orphan" && !dev.is_orphan) return false;
-    if (uiState.search) {
-      const q = uiState.search.toLowerCase();
-      const hay = [
-        dev.name,
-        dev.device_id,
-        dev.target_id,
-        dev.os_version,
-        dev.platform,
-        dev.tag,
-        dev.owner ? dev.owner.label : "",
-      ]
-        .join(" ")
-        .toLowerCase();
-      if (!hay.includes(q)) return false;
-    }
-    return true;
-  }
-
-  async function copyTargetId(targetId, btn) {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        await navigator.clipboard.writeText(targetId);
-      } else {
-        const ta = el("textarea", { value: targetId });
-        ta.value = targetId;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        ta.remove();
-      }
-      const prev = btn.textContent;
-      btn.textContent = "Copied";
-      window.setTimeout(() => {
-        btn.textContent = prev;
-      }, 1200);
-    } catch (_err) {
-      showToast("Copy failed for " + targetId, true);
-    }
-  }
-
-  function confirmForceRelease(dev) {
-    const keepCheck = el("input", { type: "checkbox" });
-    keepCheck.checked = getKeepAppsPref();
-    const extra = el("label", { class: "check-label" }, [
-      keepCheck,
-      el("span", { text: "Keep installed apps on device" }),
-    ]);
-    const ownerDesc = dev.owner ? dev.owner.display : "another session";
-    openModal({
-      title: "Force Release Protected Device?",
-      body:
-        dev.name +
-        " (" +
-        dev.target_id +
-        ") is currently owned by " +
-        ownerDesc +
-        ".\n\nForcing release shuts down this device and interrupts that session.",
-      extraNode: extra,
-      confirmLabel: "Force Release",
-      confirmClass: "btn-danger-solid",
-      onConfirm: () =>
-        submitAction("/api/release", {
-          device_id: dev.device_id,
-          keep_apps: keepCheck.checked,
-          force: true,
-        }),
+  function makeCopyButton(dev) {
+    const targetId = dev.target_id || dev.device_id;
+    const btn = el("button", {
+      type: "button",
+      class: "btn-copy",
+      text: shortId(targetId) + " · Copy",
+      title: "Copy ID: " + targetId,
     });
+    btn.addEventListener("click", () => copyTargetId(targetId, btn));
+    return btn;
   }
 
-  function confirmForceSlim(dev) {
-    const ownerDesc = dev.owner ? dev.owner.display : "another session";
-    openModal({
-      title: "Force Slim Booted Device?",
-      body:
-        dev.name +
-        " (" +
-        dev.device_id +
-        ") is booted and owned by " +
-        ownerDesc +
-        ".\n\nRunning slim may reboot this device and disrupt that session.",
-      confirmLabel: "Force Slim",
-      confirmClass: "btn-danger-solid",
-      onConfirm: () =>
-        submitAction("/api/slim", {
-          device_id: dev.device_id,
-          platform: dev.platform,
-          force: true,
-        }),
-    });
-  }
-
-  function confirmNonPoolBoot(dev) {
-    openModal({
-      title: "Boot Non-Pool Device?",
-      body:
-        dev.name +
-        " (" +
-        dev.device_id +
-        ") is not in the " +
-        dev.platform +
-        " pool.\n\nBooting it consumes a cap slot and marks it as an orphan once its lease expires. Adding it to the pool first is recommended.",
-      confirmLabel: "Prepare & Boot",
-      confirmClass: "btn-primary",
-      onConfirm: () =>
-        submitAction("/api/acquire", {
-          platform: dev.platform,
-          device_id: dev.device_id,
-          allow_non_pool: true,
-          owner: getOwnerInput(),
-          ttl_sec: getTtlSecInput(),
-        }),
-    });
-  }
-
-  function openInitPoolModal() {
-    const platSelect = el("select", { class: "modal-select" }, [
-      el("option", { value: "all", text: "All platforms (iOS + Android)" }),
-      el("option", { value: "ios", text: "iOS only" }),
-      el("option", { value: "android", text: "Android only" }),
-    ]);
-    const countInput = el("input", {
-      type: "number",
-      min: "1",
-      max: "10",
-      placeholder: "Default (platform cap)",
-      class: "modal-select",
-    });
-    const extra = el("div", { class: "modal-extra" }, [
-      el("label", { class: "sub-text", text: "Target platform" }),
-      platSelect,
-      el("label", { class: "sub-text", text: "Pool count per platform (optional)" }),
-      countInput,
-    ]);
-    openModal({
-      title: "Initialize Device Pool?",
-      body:
-        "Replaces the saved pool for the selected platform(s) with unowned devices and runs slim preparation.",
-      extraNode: extra,
-      confirmLabel: "Run Init Pool",
-      confirmClass: "btn-primary",
-      onConfirm: () => {
-        const rawCount = countInput.value.trim();
-        const payload = { platform: platSelect.value };
-        if (rawCount) {
-          payload.count = parseInt(rawCount, 10);
-        }
-        return submitAction("/api/init", payload);
+  function makeMoreMenu(menuKey, items) {
+    if (!items || items.length === 0) return null;
+    const isOpen = uiState.openMenuId === menuKey;
+    const wrap = el("div", { class: "menu-wrap" });
+    const trigger = el("button", {
+      type: "button",
+      class: "btn btn-icon btn-quiet" + (isOpen ? " is-active" : ""),
+      text: "⋯",
+      title: "More actions",
+      "aria-expanded": String(isOpen),
+      onClick: (ev) => {
+        ev.stopPropagation();
+        uiState.openMenuId = isOpen ? null : menuKey;
+        renderAll();
       },
     });
-  }
-
-  function renderOwnerCell(dev) {
-    const wrap = el("div", { class: "owner-cell" });
-    if (dev.owner) {
-      const isSelf = Boolean(dev.owner.is_self);
-      wrap.appendChild(
-        el("span", { class: "status-line" + (isSelf ? "" : " is-danger") }, [
-          el("span", { class: "dot " + (isSelf ? "dot-self" : "dot-locked") }),
-          el("span", {
-            text: (isSelf ? "Self · " : "Locked · ") + dev.owner.source + ":" + dev.owner.label,
-          }),
-        ])
-      );
-      if (typeof dev.owner.expires_in_sec === "number") {
-        const mins = Math.max(0, Math.round(dev.owner.expires_in_sec / 60));
-        wrap.appendChild(el("span", { class: "sub-text", text: mins + "m left" }));
-      } else {
-        wrap.appendChild(el("span", { class: "sub-text", text: "External session" }));
-      }
-    } else if (dev.is_orphan) {
-      wrap.appendChild(
-        el("span", { class: "status-line is-warn" }, [
-          el("span", { class: "dot dot-warn" }),
-          el("span", { text: "Orphan" }),
-        ])
-      );
-      wrap.appendChild(el("span", { class: "sub-text", text: "Booted outside pool" }));
-    } else if (dev.in_pool) {
-      wrap.appendChild(el("span", { class: "sub-text", text: "Free (pool)" }));
-    } else {
-      wrap.appendChild(el("span", { class: "sub-text", text: "—" }));
-    }
-    return wrap;
-  }
-
-  function renderMetricsCell(dev) {
-    const wrap = el("div", { class: "metrics-cell" });
-    if (dev.state === "Booted") {
-      const cpu = Number(dev.cpu_pct || 0).toFixed(1);
-      wrap.appendChild(
-        el("span", {
-          class: "metrics-text",
-          text: formatGb(dev.ram_bytes) + " · " + cpu + "% CPU",
-        })
-      );
-      if (dev.slim_status) {
-        const notSlim = dev.slim_status.includes("NOT slim");
-        wrap.appendChild(
-          el("span", {
-            class: "sub-text" + (notSlim ? " is-warn" : ""),
-            text: dev.slim_status,
-          })
-        );
-      }
-    } else if (!dev.can_slim) {
-      wrap.appendChild(
-        el("span", {
-          class: "sub-text",
-          text: "Flags-slim on boot",
-          title: dev.slim_note || "",
-        })
-      );
-    } else {
-      wrap.appendChild(el("span", { class: "sub-text", text: "—" }));
-    }
-    return wrap;
-  }
-
-  function renderActionsCell(dev) {
-    const cell = el("div", { class: "actions-cell" });
-    const busy = isDeviceBusy(dev.device_id);
-    const isBooted = dev.state === "Booted";
-    const ownedByOther = Boolean(dev.owner && !dev.owner.is_self);
-
-    if (isBooted) {
-      if (dev.owner && dev.owner.source === "mobpool") {
-        cell.appendChild(
+    wrap.appendChild(trigger);
+    if (isOpen) {
+      const pop = el("div", { class: "menu-pop", role: "menu" });
+      for (const item of items) {
+        pop.appendChild(
           el("button", {
             type: "button",
-            class: "btn btn-sm",
-            text: "Renew",
-            disabled: busy,
-            title: "Extend lease TTL",
-            onClick: () =>
-              submitAction("/api/renew", {
-                device_id: dev.device_id,
-                ttl_sec: getTtlSecInput(),
-              }),
-          })
-        );
-      }
-      if (dev.can_slim) {
-        cell.appendChild(
-          el("button", {
-            type: "button",
-            class: "btn btn-sm",
-            text: "Slim",
-            disabled: busy,
-            title: "Apply slimming profile",
-            onClick: () => {
-              if (ownedByOther) {
-                confirmForceSlim(dev);
-              } else {
-                submitAction("/api/slim", {
-                  device_id: dev.device_id,
-                  platform: dev.platform,
-                  force: false,
-                });
-              }
+            role: "menuitem",
+            class: "menu-item" + (item.danger ? " is-danger" : ""),
+            text: item.label,
+            disabled: Boolean(item.disabled),
+            title: item.title || null,
+            onClick: (ev) => {
+              ev.stopPropagation();
+              uiState.openMenuId = null;
+              item.onClick();
             },
           })
         );
       }
-      cell.appendChild(
-        el("button", {
-          type: "button",
-          class: "btn btn-sm btn-danger",
-          text: ownedByOther ? "Force Release" : dev.is_orphan ? "Shut down" : "Release",
+      wrap.appendChild(pop);
+    }
+    return wrap;
+  }
+
+  function renderRunningSection(state, devices) {
+    const list = document.getElementById("running-list");
+    const countEl = document.getElementById("running-count");
+    const ramEl = document.getElementById("running-ram");
+    clearNode(list);
+
+    const running = devices.filter((d) => d.state === "Booted");
+    countEl.textContent = String(running.length);
+    const ramText = formatGb(state.total_ram_bytes);
+    ramEl.textContent = running.length > 0 && ramText ? ramText + " total RAM" : "";
+
+    if (running.length === 0) {
+      list.appendChild(
+        el("div", { class: "empty-box" }, [
+          el("span", { text: "No devices running right now. Click Start iOS or Start Android above." }),
+        ])
+      );
+      return;
+    }
+
+    for (const dev of running) {
+      const busy = isDeviceBusy(dev.device_id);
+      const ownedByOther = Boolean(dev.owner && !dev.owner.is_self);
+      const isSelfMobpool = Boolean(dev.owner && dev.owner.is_self && dev.owner.source === "mobpool");
+
+      let statusClass = "is-green";
+      let statusText = "Running";
+      if (dev.owner) {
+        if (dev.owner.is_self) {
+          statusClass = "is-green";
+          if (typeof dev.owner.expires_in_sec === "number") {
+            const mins = Math.max(0, Math.round(dev.owner.expires_in_sec / 60));
+            statusText = "Yours · " + mins + "m left";
+          } else {
+            statusText = "Yours";
+          }
+        } else {
+          statusClass = "is-red";
+          statusText = "In use by " + dev.owner.label;
+        }
+      } else if (dev.is_orphan) {
+        statusClass = "is-amber";
+        statusText = "Started outside mobpool";
+      }
+
+      const metaChildren = [
+        el("span", { class: "state-tag " + statusClass }, [
+          el("span", { class: "dot", "aria-hidden": "true" }),
+          el("span", { text: statusText }),
+        ]),
+      ];
+      const devRam = formatGb(dev.ram_bytes);
+      if (devRam) {
+        metaChildren.push(el("span", { class: "meta-pill", text: devRam + " RAM" }));
+      }
+      if (dev.slim_status && dev.slim_status.startsWith("slim")) {
+        metaChildren.push(el("span", { class: "slim-tag", text: "Slim" }));
+      }
+      metaChildren.push(makeCopyButton(dev));
+
+      const actions = [];
+      if (isSelfMobpool) {
+        actions.push(
+          el("button", {
+            type: "button",
+            class: "btn btn-sm btn-quiet",
+            text: "+1h",
+            disabled: busy,
+            title: "Add 1 hour to your reservation",
+            onClick: () => {
+              const remaining = Math.max(0, Number(dev.owner.expires_in_sec || 0));
+              const nextTtl = Math.min(86400, remaining + 3600);
+              submitAction("/api/renew", {
+                device_id: dev.device_id,
+                ttl_sec: nextTtl,
+              });
+            },
+          })
+        );
+      }
+
+      if (ownedByOther) {
+        actions.push(
+          el("button", {
+            type: "button",
+            class: "btn btn-sm btn-danger",
+            text: "Force stop",
+            disabled: busy,
+            onClick: () => confirmForceStop(dev),
+          })
+        );
+      } else {
+        actions.push(
+          el("button", {
+            type: "button",
+            class: "btn btn-sm btn-danger",
+            text: "Stop & clean",
+            disabled: busy,
+            title: "Clean installed apps and shut down",
+            onClick: () =>
+              submitAction("/api/release", {
+                device_id: dev.device_id,
+                keep_apps: false,
+                force: false,
+              }),
+          })
+        );
+      }
+
+      const menuItems = [];
+      if (!ownedByOther) {
+        menuItems.push({
+          label: "Stop (keep apps)",
+          disabled: busy,
+          onClick: () =>
+            submitAction("/api/release", {
+              device_id: dev.device_id,
+              keep_apps: true,
+              force: false,
+            }),
+        });
+      }
+      if (dev.can_slim) {
+        menuItems.push({
+          label: "Optimize RAM (Slim)",
           disabled: busy,
           onClick: () => {
             if (ownedByOther) {
-              confirmForceRelease(dev);
+              confirmForceSlim(dev);
             } else {
-              submitAction("/api/release", {
+              submitAction("/api/slim", {
                 device_id: dev.device_id,
-                keep_apps: getKeepAppsPref(),
+                platform: dev.platform,
                 force: false,
               });
             }
           },
-        })
+        });
+      }
+      if (!ownedByOther) {
+        menuItems.push({
+          label: dev.in_pool ? "Remove from Quick-start" : "Pin to Quick-start",
+          disabled: busy,
+          onClick: () =>
+            submitAction("/api/pool", {
+              platform: dev.platform,
+              device_id: dev.device_id,
+              in_pool: !dev.in_pool,
+              prepare: false,
+            }),
+        });
+      }
+      const menu = makeMoreMenu("run:" + dev.device_id, menuItems);
+      if (menu) actions.push(menu);
+
+      list.appendChild(
+        el("div", { class: "device-row" }, [
+          el("div", { class: "device-info" }, [
+            el("div", { class: "device-title-line" }, [
+              el("span", { class: "plat-badge", text: dev.platform === "ios" ? "iOS" : "Android" }),
+              el("span", { class: "device-name", text: dev.name }),
+              dev.os_version ? el("span", { class: "device-os", text: dev.os_version }) : null,
+            ]),
+            el("div", { class: "device-meta-line" }, metaChildren),
+          ]),
+          el("div", { class: "row-actions" }, actions),
+        ])
       );
-      return cell;
+    }
+  }
+
+  function matchesPlatform(dev) {
+    return uiState.platformFilter === "all" || dev.platform === uiState.platformFilter;
+  }
+
+  function matchesSearch(dev) {
+    if (!uiState.search) return true;
+    const q = uiState.search.toLowerCase();
+    const hay = [
+      dev.name,
+      dev.device_id,
+      dev.target_id,
+      dev.os_version,
+      dev.platform,
+      dev.owner ? dev.owner.label : "",
+    ]
+      .join(" ")
+      .toLowerCase();
+    return hay.includes(q);
+  }
+
+  function totalPoolCountForFilter(state) {
+    const pools = (state && state.pools) || {};
+    const iosLen = Array.isArray(pools.ios) ? pools.ios.length : 0;
+    const androidLen = Array.isArray(pools.android) ? pools.android.length : 0;
+    if (uiState.platformFilter === "ios") return iosLen;
+    if (uiState.platformFilter === "android") return androidLen;
+    return iosLen + androidLen;
+  }
+
+  function renderQuickStartSection(state, devices) {
+    const list = document.getElementById("quickstart-list");
+    const countEl = document.getElementById("quickstart-count");
+    clearNode(list);
+
+    const poolStopped = devices.filter(
+      (d) => d.state !== "Booted" && d.in_pool && matchesPlatform(d)
+    );
+    countEl.textContent = String(poolStopped.length);
+
+    if (poolStopped.length === 0) {
+      const configuredPoolCount = totalPoolCountForFilter(state);
+      if (configuredPoolCount === 0) {
+        list.appendChild(
+          el("div", { class: "empty-box" }, [
+            el("span", { text: "No Quick-start devices picked yet." }),
+            el("button", {
+              type: "button",
+              class: "btn btn-primary btn-sm",
+              text: "Auto-pick best devices",
+              onClick: () => openInitPoolModal(uiState.platformFilter),
+            }),
+          ])
+        );
+      } else {
+        list.appendChild(
+          el("div", { class: "empty-box" }, [
+            el("span", { text: "All Quick-start devices are currently running above." }),
+          ])
+        );
+      }
+      return;
     }
 
-    if (dev.in_pool) {
-      cell.appendChild(
+    for (const dev of poolStopped) {
+      const busy = isDeviceBusy(dev.device_id);
+      const ownedByOther = Boolean(dev.owner && !dev.owner.is_self);
+      const blocker = getStartBlocker(state, dev.platform);
+      const startDisabled = busy || isAcquireBusy(dev.platform) || ownedByOther || Boolean(blocker);
+      const startTitle = ownedByOther
+        ? "In use by " + dev.owner.label
+        : blocker || "Start this device";
+
+      const metaChildren = [];
+      if (ownedByOther) {
+        metaChildren.push(
+          el("span", { class: "state-tag is-red" }, [
+            el("span", { class: "dot", "aria-hidden": "true" }),
+            el("span", { text: "In use by " + dev.owner.label }),
+          ])
+        );
+      } else if (dev.owner && dev.owner.is_self) {
+        metaChildren.push(
+          el("span", { class: "state-tag is-green" }, [
+            el("span", { class: "dot", "aria-hidden": "true" }),
+            el("span", { text: "Reserved by you" }),
+          ])
+        );
+      } else {
+        metaChildren.push(el("span", { class: "meta-pill", text: "Ready" }));
+      }
+      metaChildren.push(makeCopyButton(dev));
+
+      const menuItems = [];
+      if (dev.can_slim) {
+        menuItems.push({
+          label: "Optimize RAM (Slim)",
+          disabled: busy || ownedByOther,
+          title: ownedByOther ? "In use by " + dev.owner.label : "Apply low-RAM profile",
+          onClick: () =>
+            submitAction("/api/slim", {
+              device_id: dev.device_id,
+              platform: dev.platform,
+              force: false,
+            }),
+        });
+      }
+      menuItems.push({
+        label: "Remove from Quick-start",
+        disabled: busy,
+        onClick: () =>
+          submitAction("/api/pool", {
+            platform: dev.platform,
+            device_id: dev.device_id,
+            in_pool: false,
+          }),
+      });
+
+      const actions = [
         el("button", {
           type: "button",
-          class: "btn btn-sm btn-emphasis",
-          text: "Boot & Claim",
-          disabled: busy || isAcquireBusy(dev.platform),
+          class: "btn btn-primary btn-sm",
+          text: "Start",
+          disabled: startDisabled,
+          title: startTitle,
           onClick: () =>
             submitAction("/api/acquire", {
               platform: dev.platform,
               device_id: dev.device_id,
               allow_non_pool: false,
-              owner: getOwnerInput(),
-              ttl_sec: getTtlSecInput(),
+              owner: getDefaultOwner(),
+              ttl_sec: getDefaultTtlSec(),
             }),
-        })
+        }),
+        makeMoreMenu("qs:" + dev.device_id, menuItems),
+      ];
+
+      list.appendChild(
+        el("div", { class: "device-row" }, [
+          el("div", { class: "device-info" }, [
+            el("div", { class: "device-title-line" }, [
+              el("span", { class: "plat-badge", text: dev.platform === "ios" ? "iOS" : "Android" }),
+              el("span", { class: "device-name", text: dev.name }),
+              dev.os_version ? el("span", { class: "device-os", text: dev.os_version }) : null,
+            ]),
+            el("div", { class: "device-meta-line" }, metaChildren),
+          ]),
+          el("div", { class: "row-actions" }, actions),
+        ])
       );
-      if (dev.can_slim) {
-        cell.appendChild(
-          el("button", {
-            type: "button",
-            class: "btn btn-sm",
-            text: "Slim",
-            disabled: busy,
-            title: "Persist slim profile while shut down",
-            onClick: () =>
-              submitAction("/api/slim", {
-                device_id: dev.device_id,
-                platform: dev.platform,
-                force: false,
-              }),
-          })
+    }
+  }
+
+  function renderOtherSection(state, devices) {
+    const list = document.getElementById("other-list");
+    const countEl = document.getElementById("other-count");
+    const body = document.getElementById("other-body");
+    const chevron = document.getElementById("other-chevron");
+    const toggleBtn = document.getElementById("btn-toggle-other");
+    clearNode(list);
+
+    const others = devices.filter(
+      (d) => d.state !== "Booted" && !d.in_pool && matchesPlatform(d) && matchesSearch(d)
+    );
+    countEl.textContent = String(others.length);
+
+    const isOpen = uiState.allDevicesOpen || Boolean(uiState.search);
+    body.classList.toggle("hidden", !isOpen);
+    chevron.classList.toggle("is-open", isOpen);
+    toggleBtn.setAttribute("aria-expanded", String(isOpen));
+
+    if (!isOpen) return;
+
+    if (others.length === 0) {
+      list.appendChild(
+        el("div", { class: "empty-box" }, [
+          el("span", {
+            text: uiState.search ? "No matching devices found." : "No other devices installed.",
+          }),
+        ])
+      );
+      return;
+    }
+
+    for (const dev of others) {
+      const busy = isDeviceBusy(dev.device_id);
+      const ownedByOther = Boolean(dev.owner && !dev.owner.is_self);
+      const blocker = getStartBlocker(state, dev.platform);
+      const startDisabled = busy || isAcquireBusy(dev.platform) || ownedByOther || Boolean(blocker);
+      const startTitle = ownedByOther
+        ? "In use by " + dev.owner.label
+        : blocker || "Start this device (applies low-RAM slim setup on first start)";
+      const pinDisabled = busy || isAcquireBusy(dev.platform) || ownedByOther;
+      const pinTitle = ownedByOther
+        ? "In use by " + dev.owner.label
+        : "Add to Quick-start list and optimize RAM";
+
+      const metaChildren = [];
+      if (ownedByOther) {
+        metaChildren.push(
+          el("span", { class: "state-tag is-red" }, [
+            el("span", { class: "dot", "aria-hidden": "true" }),
+            el("span", { text: "In use by " + dev.owner.label }),
+          ])
+        );
+      } else if (dev.owner && dev.owner.is_self) {
+        metaChildren.push(
+          el("span", { class: "state-tag is-green" }, [
+            el("span", { class: "dot", "aria-hidden": "true" }),
+            el("span", { text: "Reserved by you" }),
+          ])
         );
       }
-      cell.appendChild(
-        el("button", {
-          type: "button",
-          class: "btn btn-sm btn-ghost",
-          text: "Remove",
-          disabled: busy,
-          title: "Remove from pool",
-          onClick: () =>
-            submitAction("/api/pool", {
-              platform: dev.platform,
-              device_id: dev.device_id,
-              in_pool: false,
-            }),
-        })
-      );
-    } else {
-      cell.appendChild(
+      metaChildren.push(makeCopyButton(dev));
+
+      const actions = [
         el("button", {
           type: "button",
           class: "btn btn-sm",
-          text: "Add to pool",
-          disabled: busy,
-          title: "Prepare slim profile and add to pool",
+          text: "Start",
+          disabled: startDisabled,
+          title: startTitle,
+          onClick: () =>
+            submitAction("/api/acquire", {
+              platform: dev.platform,
+              device_id: dev.device_id,
+              allow_non_pool: true,
+              owner: getDefaultOwner(),
+              ttl_sec: getDefaultTtlSec(),
+            }),
+        }),
+        el("button", {
+          type: "button",
+          class: "btn btn-sm btn-quiet",
+          text: "Pin",
+          disabled: pinDisabled,
+          title: pinTitle,
           onClick: () =>
             submitAction("/api/pool", {
               platform: dev.platform,
@@ -1817,166 +2093,152 @@ APP_JS = r"""
               in_pool: true,
               prepare: true,
             }),
-        })
-      );
-      cell.appendChild(
-        el("button", {
-          type: "button",
-          class: "btn btn-sm btn-ghost",
-          text: "Boot",
-          disabled: busy || isAcquireBusy(dev.platform),
-          title: "Boot outside pool (requires confirmation)",
-          onClick: () => confirmNonPoolBoot(dev),
-        })
-      );
-    }
+        }),
+      ];
 
-    return cell;
-  }
-
-  function renderDevices(devices) {
-    const tbody = document.getElementById("device-tbody");
-    const empty = document.getElementById("empty-state");
-    clearNode(tbody);
-
-    const filtered = devices.filter(matchesFilters);
-    if (filtered.length === 0) {
-      empty.classList.remove("hidden");
-      return;
-    }
-    empty.classList.add("hidden");
-
-    for (const dev of filtered) {
-      const idLabel =
-        dev.runtime_id && dev.runtime_id !== dev.device_id
-          ? dev.device_id + " · " + dev.runtime_id
-          : dev.device_id;
-      const copyBtn = el("button", {
-        type: "button",
-        class: "btn-copy",
-        text: "Copy",
-        title: "Copy target ID (" + dev.target_id + ")",
-      });
-      copyBtn.addEventListener("click", () => copyTargetId(dev.target_id, copyBtn));
-
-      const isBooted = dev.state === "Booted";
-      const tr = el("tr", { class: isBooted ? "is-booted" : "" }, [
-        el("td", null, [
-          el("div", { class: "device-cell" }, [
-            el("div", { class: "device-head" }, [
-              el("span", {
-                class: "plat-tag",
-                text: dev.platform === "ios" ? "iOS" : "Android",
-              }),
-              el("span", { class: "device-name", text: dev.name, title: dev.name }),
-              dev.os_version
-                ? el("span", { class: "device-os", text: dev.os_version })
-                : null,
+      list.appendChild(
+        el("div", { class: "device-row" }, [
+          el("div", { class: "device-info" }, [
+            el("div", { class: "device-title-line" }, [
+              el("span", { class: "plat-badge", text: dev.platform === "ios" ? "iOS" : "Android" }),
+              el("span", { class: "device-name", text: dev.name }),
+              dev.os_version ? el("span", { class: "device-os", text: dev.os_version }) : null,
             ]),
-            el("div", { class: "device-id-row" }, [
-              el("span", { class: "mono-id", text: idLabel }),
-              copyBtn,
-            ]),
+            el("div", { class: "device-meta-line" }, metaChildren),
           ]),
-        ]),
-        el("td", null, [
-          el("div", { class: "status-cell" }, [
-            el("span", { class: "status-line" + (isBooted ? "" : " is-muted") }, [
-              el("span", { class: "dot" + (isBooted ? " dot-booted" : "") }),
-              el("span", { text: dev.state }),
-            ]),
-            dev.in_pool ? el("span", { class: "pool-flag", text: "In pool" }) : null,
-          ]),
-        ]),
-        el("td", null, [renderOwnerCell(dev)]),
-        el("td", null, [renderMetricsCell(dev)]),
-        el("td", { class: "col-actions" }, [renderActionsCell(dev)]),
-      ]);
-      tbody.appendChild(tr);
+          el("div", { class: "row-actions" }, actions),
+        ])
+      );
     }
   }
 
   function renderActivity(recentJobs) {
-    const panel = document.getElementById("activity-panel");
+    const footer = document.getElementById("activity-footer");
     const list = document.getElementById("activity-list");
     const count = document.getElementById("activity-count");
+    const body = document.getElementById("activity-body");
+    const chevron = document.getElementById("activity-chevron");
+    const toggleBtn = document.getElementById("btn-toggle-activity");
     clearNode(list);
-    const jobs = Array.isArray(recentJobs) ? recentJobs : [];
-    count.textContent = jobs.length + (jobs.length === 1 ? " event" : " events");
-    panel.classList.toggle("is-empty", jobs.length === 0);
-    if (jobs.length === 0) return;
 
-    for (const job of jobs) {
+    const items = Array.isArray(recentJobs) ? recentJobs : [];
+    footer.classList.toggle("hidden", items.length === 0);
+    count.textContent = String(items.length);
+    body.classList.toggle("hidden", !uiState.activityOpen);
+    chevron.classList.toggle("is-open", uiState.activityOpen);
+    toggleBtn.setAttribute("aria-expanded", String(uiState.activityOpen));
+
+    if (items.length === 0 || !uiState.activityOpen) return;
+
+    if (items.length === 0) {
+      list.appendChild(el("div", { class: "meta-pill", text: "No actions yet." }));
+      return;
+    }
+    for (const job of items.slice(0, 20)) {
       const cls =
-        job.status === "succeeded"
-          ? " is-ok"
-          : job.status === "running"
-            ? ""
-            : " is-err";
+        job.status === "succeeded" ? " is-ok" : job.status === "failed" ? " is-fail" : "";
       list.appendChild(
-        el("div", { class: "activity-item" }, [
+        el("div", { class: "activity-row" }, [
           el("span", { class: "activity-time", text: formatTime(job.finished_at || job.started_at) }),
           el("span", { class: "activity-status" + cls, text: job.status }),
-          el("div", { class: "activity-msg", text: job.label + (job.message ? " — " + job.message : "") }),
+          el("div", {
+            class: "activity-msg",
+            text: job.label + (job.message ? " — " + job.message : ""),
+          }),
         ])
       );
     }
   }
 
   function renderAll() {
-    const state = uiState.snapshot;
-    if (!state) return;
-    renderSummary(state);
+    if (!uiState.state) return;
+    const devices = Array.isArray(uiState.state.devices) ? uiState.state.devices : [];
+    renderTopStatus(uiState.state);
+    renderHero(uiState.state);
     renderInFlight();
-    const devices = Array.isArray(state.devices) ? state.devices : [];
-    renderFilters(devices);
-    renderDevices(devices);
-    renderActivity(state.recent_jobs);
+    renderPlatformTabs(devices);
+    renderRunningSection(uiState.state, devices);
+    renderQuickStartSection(uiState.state, devices);
+    renderOtherSection(uiState.state, devices);
+    renderActivity(uiState.state.recent_jobs);
   }
 
   function bindEvents() {
     document.getElementById("btn-refresh").addEventListener("click", () => fetchState(true));
-    document.getElementById("btn-init-pool").addEventListener("click", openInitPoolModal);
-    document.getElementById("btn-acquire-ios").addEventListener("click", () =>
+
+    document.getElementById("btn-acquire-ios").addEventListener("click", () => {
       submitAction("/api/acquire", {
         platform: "ios",
-        owner: getOwnerInput(),
-        ttl_sec: getTtlSecInput(),
-      })
-    );
-    document.getElementById("btn-acquire-android").addEventListener("click", () =>
+        owner: getDefaultOwner(),
+        ttl_sec: getDefaultTtlSec(),
+      });
+    });
+
+    document.getElementById("btn-acquire-android").addEventListener("click", () => {
       submitAction("/api/acquire", {
         platform: "android",
-        owner: getOwnerInput(),
-        ttl_sec: getTtlSecInput(),
-      })
-    );
-    document.getElementById("auto-refresh-toggle").addEventListener("change", (ev) => {
-      uiState.autoRefresh = Boolean(ev.target.checked);
-      if (uiState.autoRefresh) {
-        scheduleNextPoll();
+        owner: getDefaultOwner(),
+        ttl_sec: getDefaultTtlSec(),
+      });
+    });
+
+    document.getElementById("btn-toggle-other").addEventListener("click", () => {
+      uiState.allDevicesOpen = !uiState.allDevicesOpen;
+      renderAll();
+    });
+
+    document.getElementById("btn-toggle-activity").addEventListener("click", () => {
+      uiState.activityOpen = !uiState.activityOpen;
+      renderAll();
+    });
+
+    document.getElementById("search-input").addEventListener("input", (ev) => {
+      uiState.search = ev.target.value.trim();
+      if (uiState.search && !uiState.allDevicesOpen) {
+        uiState.allDevicesOpen = true;
+      }
+      renderAll();
+    });
+
+    document.getElementById("modal-cancel").addEventListener("click", closeModal);
+    document.getElementById("modal-confirm").addEventListener("click", () => {
+      const handler = uiState.modalConfirmHandler;
+      closeModal();
+      if (typeof handler === "function") handler();
+    });
+
+    document.getElementById("modal-backdrop").addEventListener("click", (ev) => {
+      if (ev.target.id === "modal-backdrop") closeModal();
+    });
+
+    document.addEventListener("click", () => {
+      if (uiState.openMenuId !== null) {
+        uiState.openMenuId = null;
+        renderAll();
+      }
+    });
+
+    document.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape") {
+        closeModal();
+        if (uiState.openMenuId !== null) {
+          uiState.openMenuId = null;
+          renderAll();
+        }
+      }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden) {
+        fetchState(false).then(scheduleNextPoll);
       } else if (uiState.pollTimer) {
         window.clearTimeout(uiState.pollTimer);
         uiState.pollTimer = null;
       }
     });
-    document.getElementById("search-input").addEventListener("input", (ev) => {
-      uiState.search = String(ev.target.value || "").trim();
-      renderAll();
-    });
-    document.addEventListener("visibilitychange", () => {
-      if (document.visibilityState === "hidden") {
-        if (uiState.pollTimer) {
-          window.clearTimeout(uiState.pollTimer);
-          uiState.pollTimer = null;
-        }
-      } else if (uiState.autoRefresh) {
-        fetchState(false);
-      }
-    });
   }
 
   bindEvents();
-  fetchState(true);
+  fetchState(true).then(scheduleNextPoll);
 })();
 """
