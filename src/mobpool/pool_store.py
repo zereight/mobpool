@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+import tempfile
 
 from mobpool.config import MobpoolConfig
 
@@ -45,6 +46,24 @@ def save_pools(cfg: MobpoolConfig, pools: dict[str, list[str]]) -> None:
         "ios": list(dict.fromkeys(pools.get("ios", []))),
         "android": list(dict.fromkeys(pools.get("android", []))),
     }
-    tmp = cfg.pool_file.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-    os.replace(tmp, cfg.pool_file)
+    raw = json.dumps(payload, indent=2) + "\n"
+    tmp_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=cfg.pool_file.parent,
+            prefix=f".{cfg.pool_file.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as fh:
+            tmp_path = fh.name
+            fh.write(raw)
+        os.replace(tmp_path, cfg.pool_file)
+    except Exception:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        raise

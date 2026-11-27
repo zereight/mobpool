@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 import re
+import tempfile
 import time
 from typing import Callable
 
@@ -111,6 +112,31 @@ def _workspace_matches(cfg: MobpoolConfig, path_str: str) -> bool:
     return current == target or target in current.parents
 
 
+def _atomic_write_json(target: Path, data: dict[str, object]) -> None:
+    target.parent.mkdir(parents=True, exist_ok=True)
+    raw = json.dumps(data, indent=2) + "\n"
+    tmp_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=target.parent,
+            prefix=f".{target.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as fh:
+            tmp_path = fh.name
+            fh.write(raw)
+        os.replace(tmp_path, target)
+    except Exception:
+        if tmp_path:
+            try:
+                os.unlink(tmp_path)
+            except OSError:
+                pass
+        raise
+
+
 def write_claim(
     cfg: MobpoolConfig,
     device_id: str,
@@ -118,25 +144,24 @@ def write_claim(
     owner: str | None = None,
     ttl_sec: int | None = None,
     now: float | None = None,
+    workspace: str | None = None,
 ) -> ClaimRecord:
     current = time.time() if now is None else now
     ttl = cfg.default_ttl_sec if ttl_sec is None else max(60, int(ttl_sec))
     label = (owner or "").strip() or _default_owner_label(cfg)
+    resolved_workspace = str(cfg.workspace) if workspace is None else workspace
     record = ClaimRecord(
         device_id=device_id,
         platform=platform,
         owner=label,
-        workspace=str(cfg.workspace),
+        workspace=resolved_workspace,
         created_at=current,
         updated_at=current,
         expires_at=current + ttl,
         ttl_sec=ttl,
     )
-    cfg.claims_dir.mkdir(parents=True, exist_ok=True)
     target = claim_path(cfg, device_id)
-    tmp = target.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(record.to_dict(), indent=2) + "\n", encoding="utf-8")
-    os.replace(tmp, target)
+    _atomic_write_json(target, record.to_dict())
     return record
 
 
@@ -181,9 +206,7 @@ def renew_claim(
         ttl_sec=ttl,
     )
     target = claim_path(cfg, device_id)
-    tmp = target.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(updated.to_dict(), indent=2) + "\n", encoding="utf-8")
-    os.replace(tmp, target)
+    _atomic_write_json(target, updated.to_dict())
     return updated
 
 
@@ -215,7 +238,9 @@ def prune_expired_claims(cfg: MobpoolConfig, now: float | None = None) -> int:
     return removed
 
 
-def _rb_owner(cfg: MobpoolConfig, device_id: str) -> OwnerInfo | None:
+def _rb_owner(
+    cfg: MobpoolConfig, device_id: str, *, match_workspace: bool = True
+) -> OwnerInfo | None:
     if cfg.rb_claims_dir is None:
         return None
     owner_file = cfg.rb_claims_dir / device_id / "owner"
@@ -228,12 +253,12 @@ def _rb_owner(cfg: MobpoolConfig, device_id: str) -> OwnerInfo | None:
     return OwnerInfo(
         source="rb",
         label=Path(owner_path).name or owner_path,
-        is_self=_workspace_matches(cfg, owner_path),
+        is_self=_workspace_matches(cfg, owner_path) if match_workspace else False,
     )
 
 
 def _legacy_sg_owner(
-    cfg: MobpoolConfig, device_id: str, now: float
+    cfg: MobpoolConfig, device_id: str, now: float, *, match_workspace: bool = True
 ) -> OwnerInfo | None:
     path = cfg.legacy_sg_claims_dir / f"{device_id}.json"
     if not path.is_file():
@@ -251,11 +276,13 @@ def _legacy_sg_owner(
     return OwnerInfo(
         source="sg",
         label=label,
-        is_self=_workspace_matches(cfg, workspace),
+        is_self=_workspace_matches(cfg, workspace) if match_workspace else False,
     )
 
 
-def _legacy_ad_owner(cfg: MobpoolConfig, device_id: str) -> OwnerInfo | None:
+def _legacy_ad_owner(
+    cfg: MobpoolConfig, device_id: str, *, match_workspace: bool = True
+) -> OwnerInfo | None:
     if not cfg.legacy_ad_claims_dir.is_dir():
         return None
     for raw_path in sorted(glob.glob(str(cfg.legacy_ad_claims_dir / "*.json"))):
@@ -270,7 +297,7 @@ def _legacy_ad_owner(cfg: MobpoolConfig, device_id: str) -> OwnerInfo | None:
             return OwnerInfo(
                 source="agent-device",
                 label=Path(workspace).name or "session",
-                is_self=_workspace_matches(cfg, workspace),
+                is_self=_workspace_matches(cfg, workspace) if match_workspace else False,
             )
     return None
 
@@ -280,14 +307,20 @@ def resolve_owner(
     device_id: str,
     app_running_fn: Callable[[str], bool] | None = None,
     now: float | None = None,
+    match_workspace: bool = True,
+    self_owners: set[str] | None = None,
 ) -> OwnerInfo | None:
     current = time.time() if now is None else now
 
     record = read_active_claim(cfg, device_id, now=current)
     if record is not None:
-        is_self = (
-            (bool(cfg.owner_label) and record.owner == cfg.owner_label)
-            or _workspace_matches(cfg, record.workspace)
+        owner_match = (
+            record.owner in self_owners
+            if self_owners is not None
+            else (bool(cfg.owner_label) and record.owner == cfg.owner_label)
+        )
+        is_self = owner_match or (
+            match_workspace and _workspace_matches(cfg, record.workspace)
         )
         return OwnerInfo(
             source="mobpool",
@@ -297,9 +330,9 @@ def resolve_owner(
         )
 
     for detector in (
-        lambda: _rb_owner(cfg, device_id),
-        lambda: _legacy_sg_owner(cfg, device_id, current),
-        lambda: _legacy_ad_owner(cfg, device_id),
+        lambda: _rb_owner(cfg, device_id, match_workspace=match_workspace),
+        lambda: _legacy_sg_owner(cfg, device_id, current, match_workspace=match_workspace),
+        lambda: _legacy_ad_owner(cfg, device_id, match_workspace=match_workspace),
     ):
         found = detector()
         if found is not None:

@@ -1,6 +1,10 @@
 from __future__ import annotations
 
+from pathlib import Path
+import subprocess
+import tempfile
 import unittest
+from unittest.mock import patch
 
 from mobpool.platforms.android import (
     parse_adb_emulators,
@@ -9,10 +13,13 @@ from mobpool.platforms.android import (
     select_android_pool_candidates,
 )
 from mobpool.platforms.ios import (
+    IOSAdapter,
     format_slim_status,
     parse_ios_runtime_rank,
     select_ios_pool_candidates,
 )
+from mobpool.platforms.base import DeviceInfo
+from tests.test_claims import make_cfg
 
 
 class TestPlatformHelpers(unittest.TestCase):
@@ -62,6 +69,29 @@ class TestPlatformHelpers(unittest.TestCase):
         rss, cpu = parse_qemu_metrics(ps_out, "Pixel_9_Bot")
         self.assertEqual(rss, 2048000 * 1024)
         self.assertAlmostEqual(cpu, 12.5)
+
+    def test_ios_slim_device_auto_preserves_boot_state_for_shutdown(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = make_cfg(Path(tmp))
+            adapter = IOSAdapter(cfg)
+            devices = [
+                DeviceInfo("ios", "SIM-OFF", "iPhone 18 Pro", "Shutdown", "27.2"),
+                DeviceInfo("ios", "SIM-ON", "iPhone 17", "Booted", "27.2", runtime_id="SIM-ON"),
+            ]
+            captured_cmds: list[list[str]] = []
+
+            def fake_run(cmd, **kwargs):  # type: ignore[no-untyped-def]
+                captured_cmds.append(list(cmd))
+                return subprocess.CompletedProcess(cmd, 0, stdout="ok", stderr="")
+
+            with patch.object(adapter, "list_available", return_value=devices), patch(
+                "mobpool.platforms.ios.subprocess.run", side_effect=fake_run
+            ):
+                adapter.slim_device("SIM-OFF")
+                adapter.slim_device("SIM-ON")
+
+            self.assertIn("--preserve-boot-state", captured_cmds[0])
+            self.assertNotIn("--preserve-boot-state", captured_cmds[1])
 
 
 if __name__ == "__main__":
