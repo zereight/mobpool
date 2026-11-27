@@ -105,6 +105,13 @@ class TestGUI(unittest.TestCase):
                 self.assertIn("default-src 'self'", headers["content-security-policy"])
                 self.assertEqual(headers["x-content-type-options"], "nosniff")
                 self.assertIn(token, raw.decode("utf-8"))
+                html_text = raw.decode("utf-8")
+                self.assertIn("Start iOS", html_text)
+                self.assertIn("Start Android", html_text)
+                self.assertIn("Quick-start", html_text)
+                self.assertIn("Other installed devices", html_text)
+                self.assertIn("Settings", html_text)
+                self.assertNotIn("onclick=", html_text)
 
                 # CSS & JS assets served cleanly
                 status, _, css = _request(port, "GET", "/styles.css")
@@ -272,6 +279,27 @@ class TestGUI(unittest.TestCase):
                 self.assertEqual(job["status"], "failed")
                 self.assertTrue(job["data"].get("requires_force"))
 
+                # Adding same-workspace CLI claimed device (booted or shutdown) to pool is blocked
+                write_claim(cfg_same_ws, "SIM-FOREIGN-OFF", "ios", owner="cli-agent", ttl_sec=600)
+                ios.devices["SIM-FOREIGN-OFF"] = DeviceInfo(
+                    "ios", "SIM-FOREIGN-OFF", "iPhone 16", "Shutdown", "27.2"
+                )
+                for foreign_id in ("SIM-FOREIGN", "SIM-FOREIGN-OFF"):
+                    status, _, raw = _request(
+                        port,
+                        "POST",
+                        "/api/pool",
+                        headers=auth,
+                        body=json.dumps(
+                            {"platform": "ios", "device_id": foreign_id, "in_pool": True, "prepare": True}
+                        ).encode(),
+                    )
+                    self.assertEqual(status, 202)
+                    job = _wait_job(port, json.loads(raw.decode())["job"]["id"])
+                    self.assertEqual(job["status"], "failed")
+                    self.assertIn("BLOCKED", job["message"])
+                self.assertEqual(ios.prepared, [])
+
                 # Add SIM-POOL to pool, then acquire it through GUI
                 status, _, raw = _request(
                     port,
@@ -372,6 +400,18 @@ class TestGUI(unittest.TestCase):
                     "/api/release",
                     headers=auth,
                     body=json.dumps({"device_id": "SIM-1"}).encode(),
+                )
+                self.assertEqual(status, 409)
+
+                # Pinning a device with prepare=True on the same platform while acquire is running also returns 409
+                status, _, _ = _request(
+                    port,
+                    "POST",
+                    "/api/pool",
+                    headers=auth,
+                    body=json.dumps(
+                        {"platform": "ios", "device_id": "SIM-1", "in_pool": True, "prepare": True}
+                    ).encode(),
                 )
                 self.assertEqual(status, 409)
 

@@ -325,11 +325,13 @@ class MobpoolDashboardController:
         keys = [f"acquire:{platform}"]
         if device_id:
             keys.append(f"device:{device_id}")
-        label = (
-            f"Boot & Claim {platform} ({device_id})"
-            if device_id
-            else f"Acquire {platform}"
-        )
+        plat_label = "iOS" if platform == "ios" else "Android"
+        if device_id and allow_non_pool:
+            label = f"First-time slim setup & starting {device_id}"
+        elif device_id:
+            label = f"Starting {device_id}"
+        else:
+            label = f"Starting {plat_label}"
 
         def _run() -> ServiceResult:
             return acquire_device(
@@ -394,7 +396,7 @@ class MobpoolDashboardController:
             raise ValueError("device_id is required.")
         keep_apps = bool(payload.get("keep_apps", False))
         force = bool(payload.get("force", False))
-        label = f"{'Force Release' if force else 'Release'} {device_id}"
+        label = f"{'Force stopping' if force else 'Stopping'} {device_id}"
 
         return self.start_job(
             action="release",
@@ -422,7 +424,7 @@ class MobpoolDashboardController:
         if platform is not None and platform not in ("ios", "android"):
             raise ValueError("platform must be 'ios' or 'android'.")
         force = bool(payload.get("force", False))
-        label = f"{'Force Slim' if force else 'Slim'} {device_id}"
+        label = f"{'Force optimizing' if force else 'Optimizing'} {device_id}"
 
         return self.start_job(
             action="slim",
@@ -453,16 +455,19 @@ class MobpoolDashboardController:
         in_pool = payload["in_pool"]
         prepare = bool(payload.get("prepare", True))
         label = (
-            f"Add {device_id} to {platform} pool"
+            f"Pinning {device_id} to Quick-start"
             if in_pool
-            else f"Remove {device_id} from {platform} pool"
+            else f"Removing {device_id} from Quick-start"
         )
+        conflict_keys = [f"device:{device_id}", f"pool:{platform}"]
+        if in_pool and prepare:
+            conflict_keys.append(f"acquire:{platform}")
         return self.start_job(
             action="pool",
             label=label,
             platform=platform,
             device_id=device_id,
-            conflict_keys=(f"device:{device_id}", f"pool:{platform}"),
+            conflict_keys=tuple(conflict_keys),
             runner=lambda: set_pool_membership(
                 self.cfg,
                 self.adapters,
@@ -470,6 +475,8 @@ class MobpoolDashboardController:
                 device_or_runtime_id=device_id,
                 in_pool=in_pool,
                 prepare=prepare,
+                match_workspace=False,
+                self_owners=self.snapshot_self_owners(),
             ),
         )
 
@@ -485,7 +492,7 @@ class MobpoolDashboardController:
             count = count_raw
         return self.start_job(
             action="init",
-            label=f"Init Pool ({platform})",
+            label=f"Auto-picking Quick-start devices ({platform})",
             platform=platform,
             device_id="",
             conflict_keys=("global:init",),

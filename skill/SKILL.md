@@ -26,6 +26,6 @@ mobpool acquire --platform android --owner <task>
 mobpool renew <id> --ttl 3600                  # extend lease (heartbeat)
 mobpool release <id>                           # clean apps, shut down, unclaim
 mobpool owners                                 # list all claimed devices
-mobpool slim <id> [--force]                    # apply slim profile (blocks booted foreign devices without --force)
+mobpool slim <id> [--force]                    # apply slim profile (blocks foreign-owned devices without --force)
 mobpool gui [--port 8765] [--no-open]          # open unified iOS + Android local web dashboard
 ```
