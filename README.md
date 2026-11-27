@@ -242,11 +242,11 @@ Press `Ctrl+C` in the terminal to stop the local server.
 
 ### Dashboard Workflow
 
-- **At-a-glance status & one-click start**: The top bar shows running slots and macOS free RAM (`0 / 2 running · 64% RAM free`). Click **Start iOS** or **Start Android** to boot the next available slim device from your **Quick-start** list.
-- **Running**: Always pinned at the top with plain status (`Yours · 52m left`, `In use by <owner>`, or `Started outside mobpool`), RAM usage, one-click ID copy, **+1h** (adds one hour to your reservation), **Stop & clean** / **Stop (keep apps)** (or **Force stop** with confirmation if used by another session), and a `⋯` menu for **Optimize RAM (Slim)** or pinning.
+- **At-a-glance status & one-click start**: The top bar shows running slots and macOS free RAM (`0 / 2 running · 64% RAM free`) and auto-refreshes every 8 seconds while the tab is visible. Click **Start iOS** or **Start Android** to boot the next available slim device from your **Quick-start** list.
+- **Running**: Always pinned at the top with plain status (`Yours · 52m left`, `In use by <owner>`, or `Started outside mobpool`), RAM usage, one-click ID copy, **+1h** (adds one hour to your reservation), **Stop & clean** (or **Force stop** with confirmation if used by another session), and a `⋯` menu for **Stop (keep apps)**, **Optimize RAM (Slim)**, or pinning.
 - **Quick-start**: Lists your pinned pool devices with simple `All / iOS / Android` tabs and a single **Start** button per device (disabled when another session owns the device or when caps/memory limits are reached). When no pool is configured yet, click **Auto-pick best devices**.
 - **Other installed devices**: Collapsed by default so unused simulators stay out of the way. Expand or type in **Search devices...** to **Start** any installed device directly (with slim setup applied automatically) or **Pin** it to Quick-start.
-- **Settings & recent activity**: Click **Settings** in the top bar to adjust **Your name**, **Lock duration (minutes)**, **Keep installed apps when stopping**, auto-refresh (8s), or run **Auto-pick Quick-start devices**. **Recent activity** stays collapsed at the bottom until needed.
+- **No settings screen**: Devices you start are labeled `mobpool-gui` (or your configured owner) and reserved for the configured default TTL. **Recent activity** appears at the bottom only after you run an action.
 
 ### Guardrails & Localhost Security
 

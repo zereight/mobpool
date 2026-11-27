@@ -4,6 +4,7 @@ import http.client
 import io
 import json
 from pathlib import Path
+import re
 import tempfile
 import threading
 import time
@@ -12,6 +13,7 @@ from contextlib import redirect_stdout
 
 from mobpool.claims import write_claim
 from mobpool.gui import create_gui_server, serve_gui, validate_bind_host
+from mobpool.gui_assets import APP_JS, render_index_html
 from mobpool.platforms.base import DeviceInfo
 from tests.test_claims import make_cfg
 from tests.test_cli import FakeAdapter
@@ -74,6 +76,47 @@ def _wait_job(port: int, job_id: str, timeout: float = 5.0) -> dict[str, object]
 
 
 class TestGUI(unittest.TestCase):
+    def test_app_js_element_ids_exist_in_html(self) -> None:
+        html_text = render_index_html("token", "mobpool-gui")
+        html_ids = set(re.findall(r'\bid="([^"]+)"', html_text))
+        js_ids = set(re.findall(r'getElementById\("([^"]+)"\)', APP_JS))
+        self.assertTrue(js_ids)
+        self.assertEqual(js_ids - html_ids, set())
+
+    def test_app_js_reads_state_keys_the_server_sends(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = make_cfg(Path(tmp))
+            ios = FakeAdapter(
+                "ios",
+                [DeviceInfo("ios", "SIM-A", "iPhone 17", "Booted", "27.2", runtime_id="SIM-A")],
+            )
+            write_claim(cfg, "SIM-A", "ios", owner="someone", ttl_sec=600)
+            server = create_gui_server(
+                cfg,
+                adapters={"ios": ios, "android": FakeAdapter("android", [])},
+                free_pct_fn=lambda: 70,
+                port=0,
+            )
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                status, _, raw = _request(server.actual_port, "GET", "/api/state")
+            finally:
+                server.shutdown()
+                server.server_close()
+            self.assertEqual(status, 200)
+            state = json.loads(raw.decode("utf-8"))
+            self.assertIsInstance(state["in_flight"], list)
+            self.assertIsInstance(state["recent_jobs"], list)
+            self.assertIn("default_ttl_sec", state["config"])
+            owner = {d["device_id"]: d for d in state["devices"]}["SIM-A"]["owner"]
+            self.assertIsInstance(owner["expires_in_sec"], int)
+
+        for needed in ("state.in_flight", "recent_jobs", "owner.expires_in_sec", "config.default_ttl_sec"):
+            self.assertTrue(needed in APP_JS, f"APP_JS does not read {needed}")
+        for stale in ("state.jobs", "owner.remaining_sec"):
+            self.assertFalse(stale in APP_JS, f"APP_JS still reads {stale}, which the server never sends")
+
     def test_validate_bind_host_allows_loopback_only(self) -> None:
         self.assertEqual(validate_bind_host("127.0.0.1"), "127.0.0.1")
         self.assertEqual(validate_bind_host("localhost"), "localhost")
@@ -110,7 +153,7 @@ class TestGUI(unittest.TestCase):
                 self.assertIn("Start Android", html_text)
                 self.assertIn("Quick-start", html_text)
                 self.assertIn("Other installed devices", html_text)
-                self.assertIn("Settings", html_text)
+                self.assertNotIn("settings-panel", html_text)
                 self.assertNotIn("onclick=", html_text)
 
                 # CSS & JS assets served cleanly

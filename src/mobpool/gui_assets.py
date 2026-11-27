@@ -27,43 +27,8 @@ def render_index_html(csrf_token: str, default_owner: str) -> str:
       </div>
       <div class="topbar-actions">
         <button id="btn-refresh" class="btn btn-quiet" type="button" title="Refresh device list">Refresh</button>
-        <button id="btn-settings" class="btn btn-quiet" type="button" aria-expanded="false" aria-controls="settings-panel">Settings</button>
       </div>
     </header>
-
-    <section id="settings-panel" class="settings-panel hidden" aria-label="Settings">
-      <div class="settings-grid">
-        <label class="setting-field">
-          <span class="setting-label">Your name</span>
-          <input id="input-owner" type="text" value="{escaped_owner}" placeholder="mobpool-gui" maxlength="80">
-          <span class="setting-help">Shown on devices you start</span>
-        </label>
-        <label class="setting-field">
-          <span class="setting-label">Lock duration (minutes)</span>
-          <input id="input-ttl-min" type="number" min="1" max="1440" value="60">
-          <span class="setting-help">Reserves the device for you (does not auto-shut down)</span>
-        </label>
-      </div>
-      <div class="settings-checks">
-        <label class="check-row">
-          <input id="keep-apps-toggle" type="checkbox">
-          <span>
-            <strong>Keep installed apps when stopping</strong>
-            <small>When off, Stop cleans apps and resets iOS keychain.</small>
-          </span>
-        </label>
-        <label class="check-row">
-          <input id="auto-refresh-toggle" type="checkbox" checked>
-          <span>
-            <strong>Auto-refresh every 8 seconds</strong>
-            <small id="last-updated">Updating...</small>
-          </span>
-        </label>
-      </div>
-      <div class="settings-footer">
-        <button id="btn-init-pool" class="btn" type="button">Auto-pick Quick-start devices...</button>
-      </div>
-    </section>
 
     <section class="hero" aria-label="Quick start">
       <button id="btn-acquire-ios" class="start-card" type="button">
@@ -127,7 +92,7 @@ def render_index_html(csrf_token: str, default_owner: str) -> str:
       </section>
     </main>
 
-    <footer class="activity-footer">
+    <footer id="activity-footer" class="activity-footer hidden">
       <button id="btn-toggle-activity" class="collapse-toggle collapse-toggle-sm" type="button" aria-expanded="false" aria-controls="activity-body">
         <span id="activity-chevron" class="chevron" aria-hidden="true">&#9656;</span>
         <span>Recent activity</span>
@@ -419,23 +384,6 @@ select:focus-visible {
   background: var(--green-bg);
 }
 
-.settings-panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 16px 18px;
-  box-shadow: var(--shadow-sm);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.settings-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
 .setting-field {
   display: flex;
   flex-direction: column;
@@ -448,7 +396,6 @@ select:focus-visible {
   color: var(--text);
 }
 
-.setting-field input,
 .modal-select,
 .modal-input {
   height: 34px;
@@ -459,18 +406,6 @@ select:focus-visible {
   color: var(--text);
   font-family: inherit;
   font-size: 13px;
-}
-
-.setting-help {
-  font-size: 11.5px;
-  color: var(--text-muted);
-}
-
-.settings-checks {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding-top: 2px;
 }
 
 .check-row {
@@ -501,13 +436,6 @@ select:focus-visible {
 .check-row small {
   font-size: 12px;
   color: var(--text-muted);
-}
-
-.settings-footer {
-  display: flex;
-  justify-content: flex-end;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
 }
 
 .hero {
@@ -1113,8 +1041,7 @@ select:focus-visible {
 }
 
 @media (max-width: 640px) {
-  .hero,
-  .settings-grid {
+  .hero {
     grid-template-columns: 1fr;
   }
   .device-row {
@@ -1147,9 +1074,7 @@ APP_JS = r"""
     search: "",
     allDevicesOpen: false,
     activityOpen: false,
-    settingsOpen: false,
     openMenuId: null,
-    autoRefresh: true,
     pollTimer: null,
     jobPollTimer: null,
     inFlight: false,
@@ -1279,25 +1204,17 @@ APP_JS = r"""
     return data;
   }
 
-  function getOwnerInput() {
-    const input = document.getElementById("input-owner");
-    return (input && input.value.trim()) || DEFAULT_OWNER;
+  function getDefaultOwner() {
+    return DEFAULT_OWNER;
   }
 
-  function getTtlSecInput() {
-    const input = document.getElementById("input-ttl-min");
-    const mins = input ? parseInt(input.value, 10) : 60;
-    if (!Number.isFinite(mins) || mins < 1) return 3600;
-    return Math.min(86400, mins * 60);
-  }
-
-  function getKeepAppsPref() {
-    const box = document.getElementById("keep-apps-toggle");
-    return Boolean(box && box.checked);
+  function getDefaultTtlSec() {
+    const sec = Number(uiState.state && uiState.state.config && uiState.state.config.default_ttl_sec);
+    return Number.isFinite(sec) && sec >= 60 ? sec : 3600;
   }
 
   function activeJobs() {
-    const jobs = (uiState.state && uiState.state.jobs && uiState.state.jobs.active) || [];
+    const jobs = (uiState.state && uiState.state.in_flight) || [];
     return Array.isArray(jobs) ? jobs : [];
   }
 
@@ -1404,7 +1321,7 @@ APP_JS = r"""
       window.clearTimeout(uiState.pollTimer);
       uiState.pollTimer = null;
     }
-    if (!uiState.autoRefresh || document.hidden) return;
+    if (document.hidden) return;
     uiState.pollTimer = window.setTimeout(async () => {
       await fetchState(false);
       scheduleNextPoll();
@@ -1431,14 +1348,15 @@ APP_JS = r"""
       const url = forceRefresh ? "/api/state?refresh=1" : "/api/state";
       const data = await apiGet(url);
       const hadState = uiState.state !== null;
-      if (!hadState && data.jobs && Array.isArray(data.jobs.recent)) {
-        for (const job of data.jobs.recent) {
+      const recentJobs = Array.isArray(data.recent_jobs) ? data.recent_jobs : [];
+      if (!hadState) {
+        for (const job of recentJobs) {
           if (job && job.id && job.status !== "running") {
             uiState.seenFinishedJobs.add(job.id);
           }
         }
-      } else if (data.jobs && Array.isArray(data.jobs.recent)) {
-        notifyNewCompletedJobs(data.jobs.recent);
+      } else {
+        notifyNewCompletedJobs(recentJobs);
       }
       uiState.state = data;
       renderAll();
@@ -1476,7 +1394,7 @@ APP_JS = r"""
   }
 
   function confirmForceStop(dev) {
-    const keepBox = el("input", { type: "checkbox", checked: getKeepAppsPref() });
+    const keepBox = el("input", { type: "checkbox", checked: false });
     const extra = el("label", { class: "check-row" }, [
       keepBox,
       el("span", {}, [
@@ -1595,9 +1513,9 @@ APP_JS = r"""
       pill.classList.add("is-warn");
     }
 
-    const updated = document.getElementById("last-updated");
-    if (updated) {
-      updated.textContent = "Last updated " + formatTime(state.timestamp);
+    const refreshBtn = document.getElementById("btn-refresh");
+    if (refreshBtn && state.timestamp) {
+      refreshBtn.title = "Refresh device list (updated " + formatTime(state.timestamp) + ")";
     }
   }
 
@@ -1781,7 +1699,6 @@ APP_JS = r"""
       return;
     }
 
-    const keepApps = getKeepAppsPref();
     for (const dev of running) {
       const busy = isDeviceBusy(dev.device_id);
       const ownedByOther = Boolean(dev.owner && !dev.owner.is_self);
@@ -1792,8 +1709,8 @@ APP_JS = r"""
       if (dev.owner) {
         if (dev.owner.is_self) {
           statusClass = "is-green";
-          if (typeof dev.owner.remaining_sec === "number") {
-            const mins = Math.max(0, Math.round(dev.owner.remaining_sec / 60));
+          if (typeof dev.owner.expires_in_sec === "number") {
+            const mins = Math.max(0, Math.round(dev.owner.expires_in_sec / 60));
             statusText = "Yours · " + mins + "m left";
           } else {
             statusText = "Yours";
@@ -1832,7 +1749,7 @@ APP_JS = r"""
             disabled: busy,
             title: "Add 1 hour to your reservation",
             onClick: () => {
-              const remaining = Math.max(0, Number(dev.owner.remaining_sec || 0));
+              const remaining = Math.max(0, Number(dev.owner.expires_in_sec || 0));
               const nextTtl = Math.min(86400, remaining + 3600);
               submitAction("/api/renew", {
                 device_id: dev.device_id,
@@ -1858,15 +1775,13 @@ APP_JS = r"""
           el("button", {
             type: "button",
             class: "btn btn-sm btn-danger",
-            text: keepApps ? "Stop (keep apps)" : "Stop & clean",
+            text: "Stop & clean",
             disabled: busy,
-            title: keepApps
-              ? "Shut down while keeping installed apps"
-              : "Clean installed apps and shut down",
+            title: "Clean installed apps and shut down",
             onClick: () =>
               submitAction("/api/release", {
                 device_id: dev.device_id,
-                keep_apps: keepApps,
+                keep_apps: false,
                 force: false,
               }),
           })
@@ -1876,12 +1791,12 @@ APP_JS = r"""
       const menuItems = [];
       if (!ownedByOther) {
         menuItems.push({
-          label: keepApps ? "Stop & clean apps" : "Stop (keep apps)",
+          label: "Stop (keep apps)",
           disabled: busy,
           onClick: () =>
             submitAction("/api/release", {
               device_id: dev.device_id,
-              keep_apps: !keepApps,
+              keep_apps: true,
               force: false,
             }),
         });
@@ -2064,8 +1979,8 @@ APP_JS = r"""
               platform: dev.platform,
               device_id: dev.device_id,
               allow_non_pool: false,
-              owner: getOwnerInput(),
-              ttl_sec: getTtlSecInput(),
+              owner: getDefaultOwner(),
+              ttl_sec: getDefaultTtlSec(),
             }),
         }),
         makeMoreMenu("qs:" + dev.device_id, menuItems),
@@ -2161,8 +2076,8 @@ APP_JS = r"""
               platform: dev.platform,
               device_id: dev.device_id,
               allow_non_pool: true,
-              owner: getOwnerInput(),
-              ttl_sec: getTtlSecInput(),
+              owner: getDefaultOwner(),
+              ttl_sec: getDefaultTtlSec(),
             }),
         }),
         el("button", {
@@ -2198,6 +2113,7 @@ APP_JS = r"""
   }
 
   function renderActivity(recentJobs) {
+    const footer = document.getElementById("activity-footer");
     const list = document.getElementById("activity-list");
     const count = document.getElementById("activity-count");
     const body = document.getElementById("activity-body");
@@ -2206,12 +2122,13 @@ APP_JS = r"""
     clearNode(list);
 
     const items = Array.isArray(recentJobs) ? recentJobs : [];
+    footer.classList.toggle("hidden", items.length === 0);
     count.textContent = String(items.length);
     body.classList.toggle("hidden", !uiState.activityOpen);
     chevron.classList.toggle("is-open", uiState.activityOpen);
     toggleBtn.setAttribute("aria-expanded", String(uiState.activityOpen));
 
-    if (!uiState.activityOpen) return;
+    if (items.length === 0 || !uiState.activityOpen) return;
 
     if (items.length === 0) {
       list.appendChild(el("div", { class: "meta-pill", text: "No actions yet." }));
@@ -2243,36 +2160,25 @@ APP_JS = r"""
     renderRunningSection(uiState.state, devices);
     renderQuickStartSection(uiState.state, devices);
     renderOtherSection(uiState.state, devices);
-    renderActivity(uiState.state.jobs && uiState.state.jobs.recent);
+    renderActivity(uiState.state.recent_jobs);
   }
 
   function bindEvents() {
     document.getElementById("btn-refresh").addEventListener("click", () => fetchState(true));
 
-    const settingsBtn = document.getElementById("btn-settings");
-    const settingsPanel = document.getElementById("settings-panel");
-    settingsBtn.addEventListener("click", () => {
-      uiState.settingsOpen = !uiState.settingsOpen;
-      settingsPanel.classList.toggle("hidden", !uiState.settingsOpen);
-      settingsBtn.classList.toggle("is-active", uiState.settingsOpen);
-      settingsBtn.setAttribute("aria-expanded", String(uiState.settingsOpen));
-    });
-
-    document.getElementById("btn-init-pool").addEventListener("click", () => openInitPoolModal("all"));
-
     document.getElementById("btn-acquire-ios").addEventListener("click", () => {
       submitAction("/api/acquire", {
         platform: "ios",
-        owner: getOwnerInput(),
-        ttl_sec: getTtlSecInput(),
+        owner: getDefaultOwner(),
+        ttl_sec: getDefaultTtlSec(),
       });
     });
 
     document.getElementById("btn-acquire-android").addEventListener("click", () => {
       submitAction("/api/acquire", {
         platform: "android",
-        owner: getOwnerInput(),
-        ttl_sec: getTtlSecInput(),
+        owner: getDefaultOwner(),
+        ttl_sec: getDefaultTtlSec(),
       });
     });
 
@@ -2292,15 +2198,6 @@ APP_JS = r"""
         uiState.allDevicesOpen = true;
       }
       renderAll();
-    });
-
-    document.getElementById("keep-apps-toggle").addEventListener("change", () => {
-      renderAll();
-    });
-
-    document.getElementById("auto-refresh-toggle").addEventListener("change", (ev) => {
-      uiState.autoRefresh = Boolean(ev.target.checked);
-      scheduleNextPoll();
     });
 
     document.getElementById("modal-cancel").addEventListener("click", closeModal);
